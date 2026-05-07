@@ -13,9 +13,11 @@ const screens = {
 
 const btns = {
     start: document.getElementById('btn-start'),
-    restart: document.getElementById('btn-restart')
+    restart: document.getElementById('btn-restart'),
+    googleLogin: document.getElementById('btn-google-login')
 };
 
+const userInfoEl = document.getElementById('user-info');
 const scoreEl = document.getElementById('score');
 const finalScoreEl = document.getElementById('final-score');
 
@@ -25,43 +27,49 @@ document.getElementById('btn-show-cheat').classList.add('hidden');
 document.getElementById('cheat-text').classList.add('hidden');
 document.getElementById('btn-settings').classList.add('hidden');
 document.getElementById('btn-leaderboard').classList.add('hidden');
-document.getElementById('high-score').parentElement.style.display = 'none'; // 隱藏最高分
+document.getElementById('high-score').parentElement.style.display = 'none';
+
+let currentUser = null;
+
+// 檢查使用者是否已經使用 Google 登入
+fetch('/api/me')
+    .then(res => res.json())
+    .then(data => {
+        if(data.loggedIn) {
+            currentUser = data.user;
+            // 隱藏登入按鈕，顯示開始遊戲按鈕
+            btns.googleLogin.style.display = 'none';
+            btns.start.classList.remove('hidden');
+            // 顯示大頭貼與名字
+            let img = currentUser.picture ? `<img src="${currentUser.picture}" style="width:24px; border-radius:50%; vertical-align:middle; margin-right:5px;">` : '';
+            userInfoEl.innerHTML = `${img}歡迎, ${currentUser.name}`;
+        }
+    });
 
 function hideAllScreens() {
-    Object.values(screens).forEach(s => s.classList.add('hidden'));
+    Object.values(screens).forEach(s => { if(s) s.classList.add('hidden'); });
 }
 
 // 初始化連線
 const socket = io();
 let myId = null;
 
-// 當成功連線時
 socket.on('connect', () => {
     myId = socket.id;
-    // 顯示開始畫面
     hideAllScreens();
     screens.start.classList.remove('hidden');
 });
 
-// 點擊開始與重新開始按鈕
+// 點擊開始與重新開始按鈕 (送出使用者資料給伺服器)
 btns.start.addEventListener('click', () => {
-    socket.emit('joinGame');
+    socket.emit('joinGame', currentUser);
 });
 btns.restart.addEventListener('click', () => {
-    socket.emit('joinGame');
+    socket.emit('joinGame', currentUser);
 });
 
-// 成功加入遊戲
-socket.on('joined', () => {
-    hideAllScreens();
-});
-
-// 系統訊息 (如房間已滿)
-socket.on('serverMessage', (msg) => {
-    alert(msg);
-});
-
-// 遊戲結束
+socket.on('joined', () => { hideAllScreens(); });
+socket.on('serverMessage', (msg) => { alert(msg); });
 socket.on('gameOver', (score) => {
     hideAllScreens();
     finalScoreEl.textContent = score;
@@ -83,7 +91,6 @@ socket.on('updateScoreboard', (scores) => {
 // 鍵盤監聽
 document.addEventListener('keydown', (e) => {
     if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight", " "].includes(e.key)) e.preventDefault();
-    
     let dir = null;
     switch (e.key) {
         case 'ArrowUp': case 'w': case 'W': dir = { dx: 0, dy: -1 }; break;
@@ -91,7 +98,6 @@ document.addEventListener('keydown', (e) => {
         case 'ArrowLeft': case 'a': case 'A': dir = { dx: -1, dy: 0 }; break;
         case 'ArrowRight': case 'd': case 'D': dir = { dx: 1, dy: 0 }; break;
     }
-    
     if (dir) socket.emit('direction', dir);
 });
 
@@ -117,9 +123,14 @@ socket.on('gameState', (state) => {
         ctx.shadowBlur = 0;
     }
 
+    // 設定文字樣式
+    ctx.font = "12px sans-serif";
+    ctx.textAlign = "center";
+
     // 畫玩家
     for (let id in state.players) {
         let p = state.players[id];
+        
         p.snake.forEach((segment, index) => {
             // 自己頭部亮白色，身體為專屬顏色
             ctx.fillStyle = index === 0 ? '#FFFFFF' : p.color;
@@ -131,5 +142,11 @@ socket.on('gameState', (state) => {
                 ctx.fillRect(segment.x * GRID_SIZE + 8, segment.y * GRID_SIZE + 8, 4, 4);
             }
         });
+
+        // 畫出 Google 名字在蛇的頭上
+        if(p.name) {
+            ctx.fillStyle = p.color;
+            ctx.fillText(p.name, p.snake[0].x * GRID_SIZE + 10, p.snake[0].y * GRID_SIZE - 8);
+        }
     }
 });
