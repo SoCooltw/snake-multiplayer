@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>貪吃蛇遊戲 - 期末專題</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="game-container" id="game-container">
+        <div class="header">
+            <h1 id="game-title">貪吃蛇專題</h1>
+            <div class="top-buttons">
+                <button id="btn-settings">⚙️ 設定</button>
+                <button id="btn-leaderboard">🏆 排行榜</button>
+            </div>
+            <div class="score-board">
+                <p>分數: <span id="score">0</span></p>
+                <p>最高: <span id="high-score">0</span></p>
+            </div>
+            <div class="controls-hint" style="margin-top: 2rem; text-align: left; line-height: 2;">
+                <p>💡 提示:<br>- 撞牆會自動轉向<br>- 碰到自己則遊戲結束<br>- 記得吃發光金蘋果！</p>
+            </div>
+        </div>
+
+        <div class="game-board-container" id="board-container">
+            <canvas id="game-canvas" width="600" height="600"></canvas>
+            
+            <!-- Screens -->
+            <div id="start-screen" class="overlay">
+                <h2>準備開始</h2>
+                <p>使用方向鍵 或 WASD 控制<br><br>按 P 鍵可暫停</p>
+                <button id="btn-start" style="margin-bottom: 10px;">開始新遊戲</button>
+                <button id="btn-resume-save" class="hidden" style="border-color: var(--gold-apple); color: var(--gold-apple);">繼續上次進度</button>
+                
+                <button id="btn-show-cheat" style="margin-top: 20px; font-size: 0.5rem; background: transparent; border: 1px dashed var(--primary-color); padding: 5px;">❓ 隱藏密技怎麼開？</button>
+                <p id="cheat-text" class="hidden" style="font-size: 0.6rem; margin-top: 10px; color: var(--gold-apple); line-height: 1.5;">在鍵盤依序輸入：<br>上 上 下 下 左 右 左 右 B A</p>
+            </div>
+            
+            <div id="game-over-screen" class="overlay hidden">
+                <h2>遊戲結束!</h2>
+                <p>本次得分: <span id="final-score">0</span></p>
+                <button id="btn-restart">再玩一次</button>
+            </div>
+
+            <div id="pause-screen" class="overlay hidden">
+                <h2>已暫停</h2>
+                <p style="color: var(--gold-apple); font-size: 0.6rem;">進度已自動儲存</p>
+                <button id="btn-resume">繼續遊戲</button>
+            </div>
+
+            <div id="settings-screen" class="overlay hidden">
+                <h2>遊戲設定</h2>
+                <div class="setting-item">
+                    <label>主題：</label>
+                    <select id="theme-select">
+                        <option value="retro" selected>復古街機 (綠)</option>
+                        <option value="cyberpunk">電馭叛客 (粉藍)</option>
+                        <option value="classic">初代黑白 (黑白)</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <label>難度：</label>
+                    <select id="diff-select">
+                        <option value="easy">簡單 (慢速)</option>
+                        <option value="normal" selected>普通 (中速)</option>
+                        <option value="hard">困難 (快速)</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <label>音效：</label>
+                    <input type="checkbox" id="sound-toggle" checked>
+                </div>
+                <button id="btn-close-settings">完成</button>
+            </div>
+
+            <div id="leaderboard-screen" class="overlay hidden">
+                <h2>歷史排行榜</h2>
+                <ol id="leaderboard-list">
+                    <!-- JS 生成列表 -->
+                </ol>
+                <button id="btn-close-leaderboard">關閉</button>
+            </div>
+        </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
