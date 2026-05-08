@@ -411,11 +411,7 @@ socket.on('gameState', (state) => {
         });
         ctx.shadowBlur = 0;
 
-        // 畫出 Google 名字在蛇的頭上 (字體加大)
-        if(p.name) {
-            ctx.fillStyle = '#ffffff';
-            ctx.fillText(p.name, p.snake[0].x * GRID_SIZE + 10, p.snake[0].y * GRID_SIZE - 12);
-        }
+
     }
 
     ctx.restore();
