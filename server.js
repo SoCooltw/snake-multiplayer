@@ -135,9 +135,8 @@ io.on('connection', (socket) => {
     socket.on('direction', (dir) => {
         let p = players[socket.id];
         if(!p || p.state !== 'PLAYING') return;
-        if (p.dx !== 0 && dir.dx !== 0 && p.dx !== dir.dx) return;
-        if (p.dy !== 0 && dir.dy !== 0 && p.dy !== dir.dy) return;
-        p.dx = dir.dx; p.dy = dir.dy;
+        // 用佇列防止快速按鍵導致 180 度迴轉
+        p.nextDir = dir;
     });
 
     socket.on('disconnect', () => {
@@ -174,6 +173,17 @@ setInterval(() => {
         let p = players[id];
         if (p.state !== 'PLAYING') continue;
 
+        // 處理方向佇列：用蛇身位置驗證，防止 180 度迴轉
+        if (p.nextDir) {
+            let neck = p.snake.length > 1 ? p.snake[1] : null;
+            let futureHead = { x: p.snake[0].x + p.nextDir.dx, y: p.snake[0].y + p.nextDir.dy };
+            // 只有不會撞到脖子的方向才接受
+            if (!neck || futureHead.x !== neck.x || futureHead.y !== neck.y) {
+                p.dx = p.nextDir.dx;
+                p.dy = p.nextDir.dy;
+            }
+            p.nextDir = null;
+        }
         let head = { x: p.snake[0].x + p.dx, y: p.snake[0].y + p.dy };
 
         if (head.x < 0 || head.x >= GRID_SIZE || head.y < 0 || head.y >= GRID_SIZE) {
