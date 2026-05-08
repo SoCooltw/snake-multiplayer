@@ -12,11 +12,7 @@ app.set('trust proxy', 1);
 app.use(session({
     secret: process.env.SESSION_SECRET || 'secret',
     resave: false,
-    saveUninitialized: false,
-    cookie: {
-        secure: true, // Render 提供 HTTPS
-        sameSite: 'none' // 允許 Google 跨站 redirect
-    }
+    saveUninitialized: false
 }));
 
 // 初始化 Passport
