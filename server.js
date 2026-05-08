@@ -62,8 +62,8 @@ app.get('/api/me', (req, res) => {
 app.use(express.static(__dirname));
 
 let players = {};
-let apple = { x: 15, y: 15 };
-const GRID_SIZE = 30;
+let apple = { x: 50, y: 50 };
+const GRID_SIZE = 100;
 
 function placeApple() {
     let valid = false;
@@ -95,7 +95,7 @@ io.on('connection', (socket) => {
         players[socket.id] = {
             id: socket.id,
             name: playerName,
-            snake: [{x: Math.floor(Math.random()*20)+5, y: Math.floor(Math.random()*20)+5}],
+            snake: [{x: Math.floor(Math.random()*80)+10, y: Math.floor(Math.random()*80)+10}],
             dx: 0, dy: -1,
             color: getRandomColor(),
             score: 0,

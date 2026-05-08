@@ -101,30 +101,82 @@ document.addEventListener('keydown', (e) => {
     if (dir) socket.emit('direction', dir);
 });
 
+// 初始化星星背景
+let stars = [];
+for (let i = 0; i < 300; i++) {
+    stars.push({
+        x: Math.random() * 2000,
+        y: Math.random() * 2000,
+        r: Math.random() * 1.5,
+        alpha: Math.random()
+    });
+}
+
 // 繪製遊戲畫面
 socket.on('gameState', (state) => {
-    // 復古黑底
-    ctx.fillStyle = '#000';
+    const SERVER_GRID_SIZE = 100; // 對應後端的新尺寸
+    
+    // 計算相機位置 (如果自己活著，跟隨自己；否則置中)
+    let camX = 0;
+    let camY = 0;
+    let mySnake = null;
+    if (myId && state.players[myId] && state.players[myId].state === 'PLAYING') {
+        mySnake = state.players[myId].snake[0];
+        let targetX = mySnake.x * GRID_SIZE + GRID_SIZE / 2;
+        let targetY = mySnake.y * GRID_SIZE + GRID_SIZE / 2;
+        camX = canvas.width / 2 - targetX;
+        camY = canvas.height / 2 - targetY;
+    } else {
+        camX = canvas.width / 2 - (SERVER_GRID_SIZE * GRID_SIZE) / 2;
+        camY = canvas.height / 2 - (SERVER_GRID_SIZE * GRID_SIZE) / 2;
+    }
+
+    // 限制相機不要超出邊界
+    camX = Math.min(0, Math.max(canvas.width - SERVER_GRID_SIZE * GRID_SIZE, camX));
+    camY = Math.min(0, Math.max(canvas.height - SERVER_GRID_SIZE * GRID_SIZE, camY));
+
+    // 清空並畫上宇宙背景 (深藍紫色底)
+    ctx.fillStyle = '#0b0c10'; 
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // 網格
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+    ctx.save();
+    ctx.translate(camX, camY);
+
+    // 畫宇宙星星
+    stars.forEach(star => {
+        ctx.fillStyle = `rgba(255, 255, 255, ${star.alpha})`;
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.r, 0, Math.PI * 2);
+        ctx.fill();
+        // 讓星星閃爍
+        star.alpha += (Math.random() - 0.5) * 0.1;
+        if(star.alpha > 1) star.alpha = 1;
+        if(star.alpha < 0) star.alpha = 0;
+    });
+
+    // 邊界外框
+    ctx.strokeStyle = '#00e5ff';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(0, 0, SERVER_GRID_SIZE * GRID_SIZE, SERVER_GRID_SIZE * GRID_SIZE);
+
+    // 網格 (改畫全域)
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
     ctx.lineWidth = 1;
-    for(let i = 0; i < 30; i++) {
-        ctx.beginPath(); ctx.moveTo(i * GRID_SIZE, 0); ctx.lineTo(i * GRID_SIZE, canvas.height); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(0, i * GRID_SIZE); ctx.lineTo(canvas.width, i * GRID_SIZE); ctx.stroke();
+    for(let i = 0; i <= SERVER_GRID_SIZE; i++) {
+        ctx.beginPath(); ctx.moveTo(i * GRID_SIZE, 0); ctx.lineTo(i * GRID_SIZE, SERVER_GRID_SIZE * GRID_SIZE); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, i * GRID_SIZE); ctx.lineTo(SERVER_GRID_SIZE * GRID_SIZE, i * GRID_SIZE); ctx.stroke();
     }
 
     // 畫蘋果
     if(state.apple) {
-        ctx.fillStyle = '#ff003c'; 
-        ctx.shadowBlur = 10; ctx.shadowColor = '#ff003c';
+        ctx.fillStyle = '#ff2a2a'; 
+        ctx.shadowBlur = 15; ctx.shadowColor = '#ff2a2a';
         ctx.fillRect(state.apple.x * GRID_SIZE + 2, state.apple.y * GRID_SIZE + 2, GRID_SIZE - 4, GRID_SIZE - 4);
         ctx.shadowBlur = 0;
     }
 
-    // 設定文字樣式
-    ctx.font = "12px sans-serif";
+    // 設定文字樣式 (放大字體)
+    ctx.font = "bold 16px sans-serif";
     ctx.textAlign = "center";
 
     // 畫玩家
@@ -132,21 +184,26 @@ socket.on('gameState', (state) => {
         let p = state.players[id];
         
         p.snake.forEach((segment, index) => {
-            // 自己頭部亮白色，身體為專屬顏色
             ctx.fillStyle = index === 0 ? '#FFFFFF' : p.color;
+            ctx.shadowBlur = index === 0 ? 10 : 5;
+            ctx.shadowColor = p.color;
             ctx.fillRect(segment.x * GRID_SIZE + 1, segment.y * GRID_SIZE + 1, GRID_SIZE - 2, GRID_SIZE - 2);
             
             // 標記自己的蛇眼
             if (index === 0 && id === myId) {
-                ctx.fillStyle = 'red';
+                ctx.fillStyle = '#ff0000';
+                ctx.shadowBlur = 0;
                 ctx.fillRect(segment.x * GRID_SIZE + 8, segment.y * GRID_SIZE + 8, 4, 4);
             }
         });
+        ctx.shadowBlur = 0;
 
-        // 畫出 Google 名字在蛇的頭上
+        // 畫出 Google 名字在蛇的頭上 (字體加大)
         if(p.name) {
-            ctx.fillStyle = p.color;
-            ctx.fillText(p.name, p.snake[0].x * GRID_SIZE + 10, p.snake[0].y * GRID_SIZE - 8);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText(p.name, p.snake[0].x * GRID_SIZE + 10, p.snake[0].y * GRID_SIZE - 12);
         }
     }
+
+    ctx.restore();
 });
