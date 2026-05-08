@@ -7,11 +7,16 @@ const session = require('express-session');
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 
-// 設定 Session
+// 設定 Session (在 Render 代理後方需要 trust proxy)
+app.set('trust proxy', 1);
 app.use(session({
     secret: process.env.SESSION_SECRET || 'secret',
     resave: false,
-    saveUninitialized: false
+    saveUninitialized: false,
+    cookie: {
+        secure: true, // Render 提供 HTTPS
+        sameSite: 'none' // 允許 Google 跨站 redirect
+    }
 }));
 
 // 初始化 Passport
