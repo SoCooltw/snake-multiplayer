@@ -77,14 +77,19 @@ socket.on('gameOver', (score) => {
 });
 
 // 更新分數
+const liveScoreboardEl = document.getElementById('live-scoreboard');
 socket.on('updateScoreboard', (scores) => {
-    let myData = scores.find(s => s.id === myId);
-    if(myData) {
-        scoreEl.textContent = myData.score;
-        scoreEl.style.color = myData.color;
-    } else {
-        scoreEl.textContent = '0';
-        scoreEl.style.color = 'inherit';
+    if(liveScoreboardEl) {
+        liveScoreboardEl.innerHTML = '';
+        scores.forEach(s => {
+            let p = document.createElement('div');
+            p.textContent = `${s.name}: ${s.score}`;
+            p.style.color = s.color;
+            p.style.textShadow = `0 0 5px ${s.color}`;
+            p.style.padding = '2px 0';
+            if(s.id === myId) p.style.fontWeight = 'bold';
+            liveScoreboardEl.appendChild(p);
+        });
     }
 });
 
@@ -168,10 +173,13 @@ socket.on('gameState', (state) => {
     }
 
     // 畫蘋果
-    if(state.apple) {
+    if(state.apples) {
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = '#ff2a2a';
         ctx.fillStyle = '#ff2a2a'; 
-        ctx.shadowBlur = 15; ctx.shadowColor = '#ff2a2a';
-        ctx.fillRect(state.apple.x * GRID_SIZE + 2, state.apple.y * GRID_SIZE + 2, GRID_SIZE - 4, GRID_SIZE - 4);
+        state.apples.forEach(apple => {
+            ctx.fillRect(apple.x * GRID_SIZE + 2, apple.y * GRID_SIZE + 2, GRID_SIZE - 4, GRID_SIZE - 4);
+        });
         ctx.shadowBlur = 0;
     }
 
@@ -206,4 +214,55 @@ socket.on('gameState', (state) => {
     }
 
     ctx.restore();
+
+    // 畫出其他玩家的方向提示
+    if(myId && state.players[myId] && state.players[myId].state === 'PLAYING') {
+        let mySnake = state.players[myId].snake[0];
+        let myScreenX = mySnake.x * GRID_SIZE + GRID_SIZE / 2 + camX;
+        let myScreenY = mySnake.y * GRID_SIZE + GRID_SIZE / 2 + camY;
+
+        for (let id in state.players) {
+            if (id === myId) continue;
+            let other = state.players[id];
+            if (other.state !== 'PLAYING') continue;
+
+            let otherHead = other.snake[0];
+            let targetX = otherHead.x * GRID_SIZE + GRID_SIZE / 2 + camX;
+            let targetY = otherHead.y * GRID_SIZE + GRID_SIZE / 2 + camY;
+
+            // 如果其他玩家在畫面外，畫一個箭頭指示
+            if (targetX < 0 || targetX > canvas.width || targetY < 0 || targetY > canvas.height) {
+                let dx = targetX - myScreenX;
+                let dy = targetY - myScreenY;
+                let angle = Math.atan2(dy, dx);
+                
+                let dist = Math.min(canvas.width, canvas.height) / 2 - 25; // 邊緣向內 25px
+                let arrowX = canvas.width / 2 + Math.cos(angle) * dist;
+                let arrowY = canvas.height / 2 + Math.sin(angle) * dist;
+
+                // 畫三角形箭頭
+                ctx.save();
+                ctx.translate(arrowX, arrowY);
+                ctx.rotate(angle);
+                ctx.fillStyle = other.color;
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = other.color;
+                ctx.beginPath();
+                ctx.moveTo(10, 0);
+                ctx.lineTo(-10, -8);
+                ctx.lineTo(-10, 8);
+                ctx.closePath();
+                ctx.fill();
+                
+                // 箭頭旁寫名字
+                ctx.rotate(-angle);
+                ctx.fillStyle = '#fff';
+                ctx.shadowBlur = 0;
+                ctx.font = 'bold 12px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(other.name, 0, 22);
+                ctx.restore();
+            }
+        }
+    }
 });

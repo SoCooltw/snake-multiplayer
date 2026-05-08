@@ -16,8 +16,10 @@
                 <button id="btn-leaderboard">🏆 排行榜</button>
             </div>
             <div class="score-board">
-                <p>分數: <span id="score">0</span></p>
-                <p>最高: <span id="high-score">0</span></p>
+                <p style="margin-bottom: 10px; color: var(--primary-color);">即時戰況</p>
+                <div id="live-scoreboard" style="display: flex; flex-direction: column; gap: 5px; text-align: left; padding-left: 10px;">
+                    <!-- JS 生成分數 -->
+                </div>
             </div>
             <div class="controls-hint" style="margin-top: 2rem; text-align: left; line-height: 2;">
                 <p>💡 提示:<br>- 撞牆會自動轉向<br>- 碰到自己則遊戲結束<br>- 記得吃發光金蘋果！</p>

@@ -62,23 +62,29 @@ app.get('/api/me', (req, res) => {
 app.use(express.static(__dirname));
 
 let players = {};
-let apple = { x: 50, y: 50 };
+let apples = [];
+const NUM_APPLES = 15;
 const GRID_SIZE = 100;
 
-function placeApple() {
+function spawnApple() {
     let valid = false;
+    let newApple = {};
     while (!valid) {
-        apple = { x: Math.floor(Math.random() * GRID_SIZE), y: Math.floor(Math.random() * GRID_SIZE) };
+        newApple = { x: Math.floor(Math.random() * GRID_SIZE), y: Math.floor(Math.random() * GRID_SIZE) };
         valid = true;
         for (let id in players) {
             for (let segment of players[id].snake) {
-                if (segment.x === apple.x && segment.y === apple.y) {
-                    valid = false;
-                }
+                if (segment.x === newApple.x && segment.y === newApple.y) valid = false;
             }
         }
+        for (let a of apples) {
+            if (a.x === newApple.x && a.y === newApple.y) valid = false;
+        }
     }
+    return newApple;
 }
+
+for(let i=0; i<NUM_APPLES; i++) apples.push(spawnApple());
 
 io.on('connection', (socket) => {
     console.log('連線建立:', socket.id);
@@ -152,10 +158,12 @@ setInterval(() => {
 
         p.snake.unshift(head);
 
-        if (head.x === apple.x && head.y === apple.y) {
+        let ateIndex = apples.findIndex(a => head.x === a.x && head.y === a.y);
+        if (ateIndex !== -1) {
             p.score += 10;
             scoreboardChanged = true;
-            placeApple();
+            apples.splice(ateIndex, 1);
+            apples.push(spawnApple());
         } else {
             p.snake.pop();
         }
@@ -195,7 +203,7 @@ setInterval(() => {
         io.emit('updateScoreboard', getScoreboard());
     }
 
-    io.emit('gameState', { players, apple });
+    io.emit('gameState', { players, apples });
 
 }, 120);
 
