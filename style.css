@@ -248,11 +248,11 @@ input[type="checkbox"] {
 }
 
 .controls-hint {
-    margin-top: 1rem;
-    font-size: 0.6rem;
+    margin-top: 2rem;
+    font-size: 0.9rem;
     color: var(--primary-color);
-    line-height: 1.5;
-    opacity: 0.8;
+    line-height: 2;
+    opacity: 0.9;
 }
 
 /* Screen Shake Animation */
