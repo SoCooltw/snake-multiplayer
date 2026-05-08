@@ -91,6 +91,13 @@ function spawnApple() {
 
 for(let i=0; i<NUM_APPLES; i++) apples.push(spawnApple());
 
+let specialApple = null;
+setInterval(() => {
+    if (!specialApple && Object.keys(players).length > 0) {
+        specialApple = spawnApple();
+    }
+}, 15000); // 15秒產生一顆特殊果實
+
 io.on('connection', (socket) => {
     console.log('連線建立:', socket.id);
 
@@ -146,9 +153,10 @@ function getRandomColor() {
 }
 
 setInterval(() => {
+    let now = Date.now();
     let scoreboardChanged = false;
 
-    // 移動蛇與碰撞判定
+    // 移動蛇與吃蘋果判定
     for (let id in players) {
         let p = players[id];
         if (p.state !== 'PLAYING') continue;
@@ -163,6 +171,7 @@ setInterval(() => {
 
         p.snake.unshift(head);
 
+        // 吃一般蘋果
         let ateIndex = apples.findIndex(a => head.x === a.x && head.y === a.y);
         if (ateIndex !== -1) {
             p.score += 10;
@@ -170,30 +179,87 @@ setInterval(() => {
             apples.splice(ateIndex, 1);
             apples.push(spawnApple());
         } else {
-            p.snake.pop();
+            // 吃特殊蘋果
+            if (specialApple && head.x === specialApple.x && head.y === specialApple.y) {
+                p.score += 50;
+                p.superUntil = now + 10000; // 無敵時間 10 秒
+                specialApple = null;
+                scoreboardChanged = true;
+            } else {
+                p.snake.pop(); // 沒吃到就移除尾巴
+            }
         }
     }
 
-    // 蛇撞蛇判定
+    // 蛇撞蛇判定 (複雜吃人機制)
+    let deaths = new Set();
+    let eats = {};
+
     for (let id1 in players) {
         let p1 = players[id1];
         if(p1.state !== 'PLAYING') continue;
         let head = p1.snake[0];
-        let dead = false;
+        let p1Super = p1.superUntil && p1.superUntil > now;
+        
         for (let id2 in players) {
             let p2 = players[id2];
             if(p2.state !== 'PLAYING') continue;
+
+            if (id1 === id2) {
+                for(let i=1; i<p1.snake.length; i++) {
+                    if(head.x === p1.snake[i].x && head.y === p1.snake[i].y) deaths.add(id1);
+                }
+                continue;
+            }
+
+            let p2Super = p2.superUntil && p2.superUntil > now;
+
             for(let i=0; i<p2.snake.length; i++) {
-                if(id1 === id2 && i === 0) continue;
                 if(head.x === p2.snake[i].x && head.y === p2.snake[i].y) {
-                    dead = true; break;
+                    if (i === 0) {
+                        // 頭對撞 (只計算一次)
+                        if (id1 < id2) {
+                            if (p1Super && !p2Super) {
+                                deaths.add(id2); eats[id1] = (eats[id1]||0) + Math.floor(p2.score/2) + 50;
+                            } else if (!p1Super && p2Super) {
+                                deaths.add(id1); eats[id2] = (eats[id2]||0) + Math.floor(p1.score/2) + 50;
+                            } else {
+                                if (p1.snake.length > p2.snake.length) {
+                                    deaths.add(id2); eats[id1] = (eats[id1]||0) + Math.floor(p2.score/2) + 50;
+                                } else if (p2.snake.length > p1.snake.length) {
+                                    deaths.add(id1); eats[id2] = (eats[id2]||0) + Math.floor(p1.score/2) + 50;
+                                } else {
+                                    deaths.add(id1); deaths.add(id2);
+                                }
+                            }
+                        }
+                    } else {
+                        // 撞到身體
+                        if (p1Super) {
+                            deaths.add(id2); eats[id1] = (eats[id1]||0) + Math.floor(p2.score/2) + 50;
+                        } else {
+                            deaths.add(id1);
+                        }
+                    }
                 }
             }
-            if(dead) break;
         }
-        if(dead) {
-            p1.state = 'DEAD';
-            io.to(id1).emit('gameOver', p1.score);
+    }
+
+    // 結算死亡與吃人獎勵
+    for (let id in eats) {
+        if (!deaths.has(id) && players[id]) {
+            players[id].score += eats[id];
+            // 蛇身增長 (增加 3 節)
+            for(let k=0; k<3; k++) players[id].snake.push({...players[id].snake[players[id].snake.length-1]});
+            scoreboardChanged = true;
+        }
+    }
+
+    for (let id of deaths) {
+        if (players[id]) {
+            players[id].state = 'DEAD';
+            io.to(id).emit('gameOver', players[id].score);
         }
     }
 
@@ -204,11 +270,16 @@ setInterval(() => {
         }
     }
 
+    // 標記 isSuper 給前端特效使用
+    for (let id in players) {
+        players[id].isSuper = players[id].superUntil && players[id].superUntil > now;
+    }
+
     if(scoreboardChanged) {
         io.emit('updateScoreboard', getScoreboard());
     }
 
-    io.emit('gameState', { players, apples });
+    io.emit('gameState', { players, apples, specialApple });
 
 }, 120);
 

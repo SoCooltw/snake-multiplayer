@@ -183,6 +183,17 @@ socket.on('gameState', (state) => {
         ctx.shadowBlur = 0;
     }
 
+    // 畫特殊果實 (無敵星星)
+    if(state.specialApple) {
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = '#ffd700';
+        ctx.fillStyle = '#ffd700';
+        ctx.fillRect(state.specialApple.x * GRID_SIZE, state.specialApple.y * GRID_SIZE, GRID_SIZE, GRID_SIZE);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(state.specialApple.x * GRID_SIZE + 5, state.specialApple.y * GRID_SIZE + 5, GRID_SIZE - 10, GRID_SIZE - 10);
+        ctx.shadowBlur = 0;
+    }
+
     // 設定文字樣式 (放大字體)
     ctx.font = "bold 16px sans-serif";
     ctx.textAlign = "center";
@@ -192,9 +203,15 @@ socket.on('gameState', (state) => {
         let p = state.players[id];
         
         p.snake.forEach((segment, index) => {
-            ctx.fillStyle = index === 0 ? '#FFFFFF' : p.color;
-            ctx.shadowBlur = index === 0 ? 10 : 5;
-            ctx.shadowColor = p.color;
+            let color = p.color;
+            if (p.isSuper) {
+                // 超級狀態：閃爍七彩顏色
+                color = `hsl(${Math.random() * 360}, 100%, 70%)`;
+            }
+
+            ctx.fillStyle = index === 0 ? '#FFFFFF' : color;
+            ctx.shadowBlur = index === 0 || p.isSuper ? 15 : 5;
+            ctx.shadowColor = color;
             ctx.fillRect(segment.x * GRID_SIZE + 1, segment.y * GRID_SIZE + 1, GRID_SIZE - 2, GRID_SIZE - 2);
             
             // 標記自己的蛇眼
