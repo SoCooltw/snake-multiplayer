@@ -21,9 +21,31 @@ const userInfoEl = document.getElementById('user-info');
 const finalScoreEl = document.getElementById('final-score');
 
 // 隱藏目前多人連線用不到的功能
-['btn-resume-save','btn-show-cheat','cheat-text','btn-settings','btn-leaderboard'].forEach(id => {
+['btn-resume-save','btn-show-cheat','cheat-text','btn-leaderboard'].forEach(id => {
     let el = document.getElementById(id);
     if(el) el.classList.add('hidden');
+});
+
+// 設定按鈕
+let settingsOrigin = null;
+document.getElementById('btn-settings').addEventListener('click', () => {
+    settingsOrigin = Object.values(screens).find(el => !el.classList.contains('hidden')) || null;
+    hideAllScreens();
+    screens.settings.classList.remove('hidden');
+});
+document.getElementById('btn-close-settings').addEventListener('click', () => {
+    screens.settings.classList.add('hidden');
+    if (settingsOrigin) settingsOrigin.classList.remove('hidden');
+    settingsOrigin = null;
+});
+
+// 主題切換
+const savedTheme = localStorage.getItem('theme') || 'retro';
+document.getElementById('theme-select').value = savedTheme;
+document.documentElement.setAttribute('data-theme', savedTheme);
+document.getElementById('theme-select').addEventListener('change', (e) => {
+    document.documentElement.setAttribute('data-theme', e.target.value);
+    localStorage.setItem('theme', e.target.value);
 });
 
 let currentUser = null;

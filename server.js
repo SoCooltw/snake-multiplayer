@@ -82,20 +82,25 @@ const APPLE_LIFETIME = 20000;  // 紅蘋果 20 秒消失
 const SPECIAL_LIFETIME = 12000; // 特殊果實 12 秒消失
 
 function spawnApple() {
-    let valid = false;
     let newApple = {};
-    while (!valid) {
+    const MAX_ATTEMPTS = 200;
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
         newApple = { x: Math.floor(Math.random() * GRID_SIZE), y: Math.floor(Math.random() * GRID_SIZE), t: Date.now() };
-        valid = true;
+        let valid = true;
         for (let id in players) {
             for (let segment of players[id].snake) {
-                if (segment.x === newApple.x && segment.y === newApple.y) valid = false;
+                if (segment.x === newApple.x && segment.y === newApple.y) { valid = false; break; }
+            }
+            if (!valid) break;
+        }
+        if (valid) {
+            for (let a of apples) {
+                if (a.x === newApple.x && a.y === newApple.y) { valid = false; break; }
             }
         }
-        for (let a of apples) {
-            if (a.x === newApple.x && a.y === newApple.y) valid = false;
-        }
+        if (valid) return newApple;
     }
+    // 地圖幾乎塞滿時，直接回傳最後一次隨機位置（避免伺服器卡死）
     return newApple;
 }
 
@@ -166,14 +171,18 @@ io.on('connection', (socket) => {
     socket.on('direction', (dir) => {
         let p = players[socket.id];
         if(!p || p.state !== 'PLAYING') return;
+        // 驗證輸入：dx/dy 只允許 -1, 0, 1，且不能同時為非零（斜向移動）
+        const validValues = [-1, 0, 1];
+        if (!validValues.includes(dir.dx) || !validValues.includes(dir.dy)) return;
+        if (dir.dx !== 0 && dir.dy !== 0) return;
+        if (dir.dx === 0 && dir.dy === 0) return;
         // 用佇列防止快速按鍵導致 180 度迴轉
         p.nextDir = dir;
-        // 接收衝刺指令
-        socket.on('dash', (isDashing) => {
-            let p = players[socket.id];
-            if (p && p.state === 'PLAYING') p.isDashing = isDashing;
-        });
+    });
 
+    socket.on('dash', (isDashing) => {
+        let p = players[socket.id];
+        if (p && p.state === 'PLAYING') p.isDashing = isDashing;
     });
 
     socket.on('disconnect', () => {
@@ -331,7 +340,15 @@ setInterval(() => {
         if(p1.state !== 'PLAYING') continue;
         let head = p1.snake[0];
         let p1Super = p1.superUntil && p1.superUntil > now;
-        
+
+        // 觸雷判定 (移到外層，每位玩家只判斷一次)
+        for(let i=0; i<mines.length; i++) {
+            if(head.x === mines[i].x && head.y === mines[i].y) {
+                deaths.add(id1);
+                io.emit('killFeed', { msg: `💥 ${p1.name} 踩到了地雷！`, color: '#ff0000' });
+            }
+        }
+
         for (let id2 in players) {
             let p2 = players[id2];
             if(p2.state !== 'PLAYING') continue;
@@ -341,14 +358,6 @@ setInterval(() => {
                     if(head.x === p1.snake[i].x && head.y === p1.snake[i].y) deaths.add(id1);
                 }
                 continue;
-            }
-
-            // 觸雷判定
-            for(let i=0; i<mines.length; i++) {
-                if(head.x === mines[i].x && head.y === mines[i].y) {
-                    deaths.add(id1);
-                    io.emit('killFeed', { msg: `💥 ${p1.name} 踩到了地雷！`, color: '#ff0000' });
-                }
             }
 
             let p2Super = p2.superUntil && p2.superUntil > now;
@@ -401,7 +410,7 @@ setInterval(() => {
             let deadSnake = players[id].snake;
             for (let i = 0; i < deadSnake.length; i += 3) {
                 if (apples.length < 80) {
-                    apples.push({ x: deadSnake[i].x, y: deadSnake[i].y });
+                    apples.push({ x: deadSnake[i].x, y: deadSnake[i].y, t: Date.now() });
                 }
             }
         }
