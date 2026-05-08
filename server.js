@@ -74,6 +74,8 @@ app.use(express.static(__dirname, {
 
 let players = {};
 let apples = [];
+const chatCooldowns = {};   // socket.id -> 上次發話時間
+const dirCooldowns = {};    // socket.id -> 上次方向時間
 const NUM_APPLES = 15;
 const GRID_SIZE = 100;
 const MAX_PLAYERS = 10;
@@ -149,8 +151,8 @@ io.on('connection', (socket) => {
             return;
         }
 
-        // 如果沒有登入，預設為 Guest
-        let playerName = userData && userData.name ? userData.name : 'Guest';
+        // 名稱清理：最長 20 字，去除前後空白，預設 Guest
+        let playerName = (userData && userData.name ? String(userData.name).trim().slice(0, 20) : '') || 'Guest';
 
         players[socket.id] = {
             id: socket.id,
@@ -171,12 +173,15 @@ io.on('connection', (socket) => {
     socket.on('direction', (dir) => {
         let p = players[socket.id];
         if(!p || p.state !== 'PLAYING') return;
+        // Rate limit：每 50ms 最多一次
+        const now = Date.now();
+        if (dirCooldowns[socket.id] && now - dirCooldowns[socket.id] < 50) return;
+        dirCooldowns[socket.id] = now;
         // 驗證輸入：dx/dy 只允許 -1, 0, 1，且不能同時為非零（斜向移動）
         const validValues = [-1, 0, 1];
         if (!validValues.includes(dir.dx) || !validValues.includes(dir.dy)) return;
         if (dir.dx !== 0 && dir.dy !== 0) return;
         if (dir.dx === 0 && dir.dy === 0) return;
-        // 用佇列防止快速按鍵導致 180 度迴轉
         p.nextDir = dir;
     });
 
@@ -185,8 +190,23 @@ io.on('connection', (socket) => {
         if (p && p.state === 'PLAYING') p.isDashing = isDashing;
     });
 
+    socket.on('chat', (msg) => {
+        if (!msg || typeof msg !== 'string') return;
+        msg = msg.trim().slice(0, 60);
+        if (!msg) return;
+        // Rate limit：每 1.5 秒最多一則
+        const now = Date.now();
+        if (chatCooldowns[socket.id] && now - chatCooldowns[socket.id] < 1500) return;
+        chatCooldowns[socket.id] = now;
+        const name = players[socket.id] ? players[socket.id].name : '觀戰者';
+        const color = players[socket.id] ? players[socket.id].color : '#aaaaaa';
+        io.emit('chatMessage', { name, msg, color, time: now });
+    });
+
     socket.on('disconnect', () => {
         delete players[socket.id];
+        delete chatCooldowns[socket.id];
+        delete dirCooldowns[socket.id];
         io.emit('updateScoreboard', getScoreboard());
     });
 });

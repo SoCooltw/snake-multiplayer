@@ -2,6 +2,14 @@ const canvas = document.getElementById('game-canvas');
 const ctx = canvas.getContext('2d');
 const GRID_SIZE = 20;
 
+function escapeHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
 // UI 元素
 const screens = {
     start: document.getElementById('start-screen'),
@@ -105,9 +113,13 @@ if(guestBtn) {
 socket.on('joined', () => { hideAllScreens(); });
 socket.on('serverMessage', (msg) => { alert(msg); });
 socket.on('gameOver', (score) => {
-    hideAllScreens();
+    // 不 hideAllScreens：讓遊戲畫面繼續在半透明 overlay 後面跑（觀戰模式）
+    Object.values(screens).forEach(s => { if (s !== screens.over) s.classList.add('hidden'); });
     finalScoreEl.textContent = score;
     screens.over.classList.remove('hidden');
+    // 死亡後自動 focus 聊天輸入框
+    const chatInput = document.getElementById('chat-input');
+    if (chatInput) setTimeout(() => chatInput.focus(), 200);
 });
 
 // 更新分數
@@ -152,8 +164,9 @@ if (btnToggleUi && controlsHint) {
     });
 }
 
-// 鍵盤監聽
+// 鍵盤監聽（聊天框 focus 時不攔截）
 document.addEventListener('keydown', (e) => {
+    if (document.activeElement && document.activeElement.id === 'chat-input') return;
     if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight", " "].includes(e.key)) e.preventDefault();
     if (e.key === ' ') { socket.emit('dash', true); return; }
     let dir = null;
@@ -166,6 +179,7 @@ document.addEventListener('keydown', (e) => {
     if (dir) socket.emit('direction', dir);
 });
 document.addEventListener('keyup', (e) => {
+    if (document.activeElement && document.activeElement.id === 'chat-input') return;
     if (e.key === ' ') socket.emit('dash', false);
 });
 
@@ -208,6 +222,41 @@ if (dpadDash) {
     dpadDash.addEventListener('mouseup', (e) => { e.preventDefault(); socket.emit('dash', false); });
     dpadDash.addEventListener('mouseleave', (e) => { e.preventDefault(); socket.emit('dash', false); });
 }
+
+// 聊天
+const chatInput = document.getElementById('chat-input');
+const chatMessages = document.getElementById('chat-messages');
+
+if (chatInput) {
+    chatInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const msg = chatInput.value.trim();
+            if (msg) {
+                socket.emit('chat', msg);
+                chatInput.value = '';
+            }
+        }
+        // Escape：取消 focus，回到遊戲控制
+        if (e.key === 'Escape') chatInput.blur();
+    });
+}
+
+socket.on('chatMessage', (data) => {
+    if (!chatMessages) return;
+    const div = document.createElement('div');
+    div.className = 'chat-msg';
+    const t = new Date(data.time);
+    const hh = String(t.getHours()).padStart(2, '0');
+    const mm = String(t.getMinutes()).padStart(2, '0');
+    div.innerHTML = `<span style="color:#666;font-size:0.5rem">${hh}:${mm}</span> `
+        + `<b style="color:${escapeHtml(data.color)}">${escapeHtml(data.name)}</b>`
+        + `<span style="color:#ddd">: ${escapeHtml(data.msg)}</span>`;
+    chatMessages.appendChild(div);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+    // 保留最新 60 則
+    while (chatMessages.children.length > 60) chatMessages.removeChild(chatMessages.firstChild);
+});
 
 // 初始化星星背景
 let stars = [];
@@ -500,5 +549,24 @@ socket.on('gameState', (state) => {
                 ctx.restore();
             }
         }
+    }
+
+    // 特殊效果 HUD（左下角，顯示剩餘秒數）
+    if (myId && state.players[myId] && state.players[myId].state === 'PLAYING') {
+        const p = state.players[myId];
+        const effects = [];
+        if (p.superUntil    && p.superUntil    > now) effects.push({ icon: '⭐', label: '無敵', secs: Math.ceil((p.superUntil    - now) / 1000), color: '#ffd700' });
+        if (p.speedUntil    && p.speedUntil    > now) effects.push({ icon: '💨', label: '加速', secs: Math.ceil((p.speedUntil    - now) / 1000), color: '#00ff88' });
+        if (p.magnetUntil   && p.magnetUntil   > now) effects.push({ icon: '🧲', label: '磁鐵', secs: Math.ceil((p.magnetUntil   - now) / 1000), color: '#0088ff' });
+        if (p.reversedUntil && p.reversedUntil > now) effects.push({ icon: '☠️', label: '中毒', secs: Math.ceil((p.reversedUntil - now) / 1000), color: '#cc44cc' });
+        effects.forEach((ef, i) => {
+            ctx.font = 'bold 13px sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillStyle = ef.color;
+            ctx.shadowBlur = 8;
+            ctx.shadowColor = ef.color;
+            ctx.fillText(`${ef.icon} ${ef.label} ${ef.secs}s`, 10, canvas.height - 12 - i * 20);
+        });
+        ctx.shadowBlur = 0;
     }
 });
