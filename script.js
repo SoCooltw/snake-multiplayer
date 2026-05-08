@@ -18,16 +18,13 @@ const btns = {
 };
 
 const userInfoEl = document.getElementById('user-info');
-const scoreEl = document.getElementById('score');
 const finalScoreEl = document.getElementById('final-score');
 
 // 隱藏目前多人連線用不到的功能
-document.getElementById('btn-resume-save').classList.add('hidden');
-document.getElementById('btn-show-cheat').classList.add('hidden');
-document.getElementById('cheat-text').classList.add('hidden');
-document.getElementById('btn-settings').classList.add('hidden');
-document.getElementById('btn-leaderboard').classList.add('hidden');
-document.getElementById('high-score').parentElement.style.display = 'none';
+['btn-resume-save','btn-show-cheat','cheat-text','btn-settings','btn-leaderboard'].forEach(id => {
+    let el = document.getElementById(id);
+    if(el) el.classList.add('hidden');
+});
 
 let currentUser = null;
 
