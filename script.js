@@ -115,9 +115,25 @@ socket.on('killFeed', (data) => {
     if(killFeedMessages.length > 5) killFeedMessages.shift();
 });
 
+// UI 顯示切換
+const btnToggleUi = document.getElementById('btn-toggle-ui');
+const controlsHint = document.getElementById('controls-hint');
+if (btnToggleUi && controlsHint) {
+    btnToggleUi.addEventListener('click', () => {
+        if (controlsHint.style.display === 'none') {
+            controlsHint.style.display = 'block';
+            btnToggleUi.innerText = '👁️ 隱藏';
+        } else {
+            controlsHint.style.display = 'none';
+            btnToggleUi.innerText = '👁️ 顯示';
+        }
+    });
+}
+
 // 鍵盤監聽
 document.addEventListener('keydown', (e) => {
     if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight", " "].includes(e.key)) e.preventDefault();
+    if (e.key === ' ') { socket.emit('dash', true); return; }
     let dir = null;
     switch (e.key) {
         case 'ArrowUp': case 'w': case 'W': dir = { dx: 0, dy: -1 }; break;
@@ -126,6 +142,9 @@ document.addEventListener('keydown', (e) => {
         case 'ArrowRight': case 'd': case 'D': dir = { dx: 1, dy: 0 }; break;
     }
     if (dir) socket.emit('direction', dir);
+});
+document.addEventListener('keyup', (e) => {
+    if (e.key === ' ') socket.emit('dash', false);
 });
 
 // 手機滑動控制
@@ -158,6 +177,15 @@ canvas.addEventListener('touchend', (e) => {
     btn.addEventListener('touchstart', (e) => { e.preventDefault(); socket.emit('direction', dir); }, { passive: false });
     btn.addEventListener('mousedown', (e) => { e.preventDefault(); socket.emit('direction', dir); });
 });
+
+const dpadDash = document.getElementById('dpad-dash');
+if (dpadDash) {
+    dpadDash.addEventListener('touchstart', (e) => { e.preventDefault(); socket.emit('dash', true); }, { passive: false });
+    dpadDash.addEventListener('touchend', (e) => { e.preventDefault(); socket.emit('dash', false); }, { passive: false });
+    dpadDash.addEventListener('mousedown', (e) => { e.preventDefault(); socket.emit('dash', true); });
+    dpadDash.addEventListener('mouseup', (e) => { e.preventDefault(); socket.emit('dash', false); });
+    dpadDash.addEventListener('mouseleave', (e) => { e.preventDefault(); socket.emit('dash', false); });
+}
 
 // 初始化星星背景
 let stars = [];
@@ -270,6 +298,78 @@ socket.on('gameState', (state) => {
         ctx.shadowBlur = 0;
     }
 
+    // 畫毒蘋果 (紫色)
+    if(state.poisonApple) {
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = '#800080';
+        ctx.fillStyle = '#800080';
+        ctx.fillRect(state.poisonApple.x * GRID_SIZE + 2, state.poisonApple.y * GRID_SIZE + 2, GRID_SIZE - 4, GRID_SIZE - 4);
+        ctx.shadowBlur = 0;
+    }
+
+    // 畫磁鐵蘋果 (藍色)
+    if(state.magnetApple) {
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = '#0088ff';
+        ctx.fillStyle = '#0088ff';
+        ctx.beginPath();
+        ctx.arc(state.magnetApple.x * GRID_SIZE + GRID_SIZE/2, state.magnetApple.y * GRID_SIZE + GRID_SIZE/2, GRID_SIZE/2 - 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+    }
+
+    // 畫炸彈蘋果 (黑色)
+    if(state.bombApple) {
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = '#555555';
+        ctx.fillStyle = '#333333';
+        ctx.beginPath();
+        ctx.arc(state.bombApple.x * GRID_SIZE + GRID_SIZE/2, state.bombApple.y * GRID_SIZE + GRID_SIZE/2, GRID_SIZE/2 - 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ff0000'; // 引信
+        ctx.fillRect(state.bombApple.x * GRID_SIZE + GRID_SIZE/2 - 2, state.bombApple.y * GRID_SIZE, 4, 4);
+        ctx.shadowBlur = 0;
+    }
+
+    // 畫地雷
+    if (state.mines) {
+        let now = Date.now();
+        state.mines.forEach(mine => {
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#ff0000';
+            ctx.fillStyle = (Math.floor(now / 200) % 2 === 0) ? '#ff0000' : '#550000'; // 閃爍紅光
+            ctx.beginPath();
+            ctx.arc(mine.x * GRID_SIZE + GRID_SIZE/2, mine.y * GRID_SIZE + GRID_SIZE/2, GRID_SIZE/2 - 2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+        });
+    }
+
+    // 畫黑洞
+    if (state.blackHoles) {
+        let now = Date.now();
+        state.blackHoles.forEach(bh => {
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = '#6a0dad';
+            ctx.fillStyle = '#000000';
+            ctx.beginPath();
+            ctx.arc(bh.x * GRID_SIZE + GRID_SIZE/2, bh.y * GRID_SIZE + GRID_SIZE/2, bh.r * GRID_SIZE, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // 旋轉吸積盤特效
+            ctx.save();
+            ctx.translate(bh.x * GRID_SIZE + GRID_SIZE/2, bh.y * GRID_SIZE + GRID_SIZE/2);
+            ctx.rotate(now / 500);
+            ctx.strokeStyle = `rgba(138, 43, 226, ${0.5 + Math.sin(now/200)*0.5})`;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(0, 0, bh.r * GRID_SIZE + 5, 0, Math.PI * 1.5);
+            ctx.stroke();
+            ctx.restore();
+            ctx.shadowBlur = 0;
+        });
+    }
+
     // 設定文字樣式 (放大字體)
     ctx.font = "bold 16px sans-serif";
     ctx.textAlign = "center";
@@ -295,6 +395,18 @@ socket.on('gameState', (state) => {
                 ctx.fillStyle = '#ff0000';
                 ctx.shadowBlur = 0;
                 ctx.fillRect(segment.x * GRID_SIZE + 8, segment.y * GRID_SIZE + 8, 4, 4);
+            }
+
+            // 畫皇冠和名字
+            if (index === 0) {
+                ctx.shadowBlur = 0;
+                if (p.isKing) {
+                    ctx.font = "16px sans-serif";
+                    ctx.fillText("👑", segment.x * GRID_SIZE + GRID_SIZE/2, segment.y * GRID_SIZE - 5);
+                    ctx.font = "bold 16px sans-serif";
+                }
+                ctx.fillStyle = p.isSuper ? '#ffd700' : p.color;
+                ctx.fillText(p.name, segment.x * GRID_SIZE + GRID_SIZE / 2, segment.y * GRID_SIZE - (p.isKing ? 25 : 10));
             }
         });
         ctx.shadowBlur = 0;

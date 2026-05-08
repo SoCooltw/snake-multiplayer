@@ -19,20 +19,21 @@
                 <button id="btn-leaderboard">🏆 排行榜</button>
             </div>
             <div class="score-board">
-                <p style="margin-bottom: 10px; color: var(--primary-color);">即時戰況</p>
+                <p style="margin-bottom: 10px; color: var(--primary-color);">即時戰況 <button id="btn-toggle-ui" style="font-size: 0.5rem; padding: 2px 5px; float: right;">👁️ 隱藏</button></p>
                 <div id="live-scoreboard" style="display: flex; flex-direction: column; gap: 5px; text-align: left; padding-left: 10px;">
                     <!-- JS 生成分數 -->
                 </div>
             </div>
-            <div class="controls-hint" style="margin-top: 2rem; text-align: left; line-height: 2;">
+            <div class="controls-hint" id="controls-hint" style="margin-top: 2rem; text-align: left; line-height: 2;">
                 <p>💡 遊戲機制:<br>
-                🐍 頭對撞：大蛇吞小蛇，同長同歸於盡<br>
-                ⭐ 金蘋果：吃到後 10 秒無敵，碰到任何蛇都能吞<br>
-                💨 綠三角：吃到後 8 秒加速衝刺<br>
-                🍎 紅蘋果：+10 分，蛇身加長<br>
-                💀 死亡後蛇身會散落成蘋果<br>
-                🔄 死亡可立即重生<br>
-                👥 最多 10 人同場競技</p>
+                💨 <b>空白鍵 (按住)</b>：消耗長度衝刺<br>
+                🐍 <b>頭對撞</b>：大蛇吞小蛇<br>
+                ⭐ <b>金蘋果</b>：10 秒無敵<br>
+                🧲 <b>藍蘋果</b>：磁鐵吸取果實<br>
+                ☠️ <b>紫蘋果</b>：反向操作中毒<br>
+                💣 <b>黑蘋果</b>：吃下後排泄地雷<br>
+                🌀 <b>黑洞</b>：小心被吸入死亡<br>
+                👑 <b>皇冠</b>：擊殺第一名獲大量分數</p>
             </div>
         </div>
 
@@ -105,9 +106,10 @@
             <button class="dpad-btn" id="dpad-up">▲</button>
             <div class="dpad-row">
                 <button class="dpad-btn" id="dpad-left">◀</button>
-                <button class="dpad-btn" id="dpad-down">▼</button>
+                <button class="dpad-btn" id="dpad-dash" style="background: rgba(255,0,0,0.2); border-color: red; color: red;">💨</button>
                 <button class="dpad-btn" id="dpad-right">▶</button>
             </div>
+            <button class="dpad-btn" id="dpad-down">▼</button>
         </div>
     </div>
 

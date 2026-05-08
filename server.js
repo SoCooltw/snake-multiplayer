@@ -103,17 +103,32 @@ for(let i=0; i<NUM_APPLES; i++) apples.push(spawnApple());
 
 let specialApple = null;
 setInterval(() => {
-    if (!specialApple && Object.keys(players).length > 0) {
-        specialApple = { ...spawnApple() };
-    }
+    if (!specialApple && Object.keys(players).length > 0) specialApple = { ...spawnApple() };
 }, 15000);
 
-let speedApple = null;
+let magnetApple = null;
 setInterval(() => {
-    if (!speedApple && Object.keys(players).length > 0) {
-        speedApple = { ...spawnApple() };
+    if (!magnetApple && Object.keys(players).length > 0 && Math.random() < 0.5) magnetApple = { ...spawnApple() };
+}, 18000);
+
+let poisonApple = null;
+setInterval(() => {
+    if (!poisonApple && Object.keys(players).length > 0 && Math.random() < 0.5) poisonApple = { ...spawnApple() };
+}, 25000);
+
+let bombApple = null;
+setInterval(() => {
+    if (!bombApple && Object.keys(players).length > 0 && Math.random() < 0.5) bombApple = { ...spawnApple() };
+}, 30000);
+
+let mines = [];
+let blackHoles = [];
+setInterval(() => {
+    if (Object.keys(players).length > 0 && Math.random() < 0.3 && blackHoles.length < 2) {
+        blackHoles.push({ ...spawnApple(), r: Math.random() * 2 + 2, t: Date.now() });
     }
-}, 20000);
+}, 40000);
+
 
 io.on('connection', (socket) => {
     console.log('連線建立:', socket.id);
@@ -148,6 +163,12 @@ io.on('connection', (socket) => {
         if(!p || p.state !== 'PLAYING') return;
         // 用佇列防止快速按鍵導致 180 度迴轉
         p.nextDir = dir;
+        // 接收衝刺指令
+        socket.on('dash', (isDashing) => {
+            let p = players[socket.id];
+            if (p && p.state === 'PLAYING') p.isDashing = isDashing;
+        });
+
     });
 
     socket.on('disconnect', () => {
@@ -175,7 +196,9 @@ function getRandomColor() {
     return `hsl(${Math.floor(Math.random() * 360)}, 100%, 60%)`;
 }
 
+let tickCount = 0;
 setInterval(() => {
+    tickCount++;
     let now = Date.now();
     let scoreboardChanged = false;
 
@@ -186,30 +209,76 @@ setInterval(() => {
             apples.push(spawnApple());
         }
     }
-    // 特殊果實過期
     if (specialApple && now - specialApple.t > SPECIAL_LIFETIME) specialApple = null;
-    // 加速果實過期
     if (speedApple && now - speedApple.t > SPECIAL_LIFETIME) speedApple = null;
+    if (poisonApple && now - poisonApple.t > SPECIAL_LIFETIME) poisonApple = null;
+    if (magnetApple && now - magnetApple.t > SPECIAL_LIFETIME) magnetApple = null;
+    if (bombApple && now - bombApple.t > SPECIAL_LIFETIME) bombApple = null;
+
+    mines = mines.filter(m => now - m.t < 15000); // 地雷 15 秒後消失
+    blackHoles = blackHoles.filter(b => now - b.t < 20000); // 黑洞 20 秒後消失
 
     // 移動蛇與吃蘋果判定
     for (let id in players) {
         let p = players[id];
         if (p.state !== 'PLAYING') continue;
 
+        let isFast = (p.isDashing && p.snake.length > 5) || (p.speedUntil && p.speedUntil > now);
+        if (p.isDashing && p.snake.length <= 5) p.isDashing = false;
+
+        // 慢速玩家只在偶數 tick 移動，快速玩家每 tick 移動 (tick=60ms)
+        if (!isFast && tickCount % 2 !== 0) continue;
+
+        // 衝刺代價：扣分並掉落蘋果
+        if (p.isDashing && tickCount % 4 === 0) {
+            let tail = p.snake.pop();
+            if (apples.length < 100) apples.push({x: tail.x, y: tail.y, t: Date.now()});
+            p.score = Math.max(0, p.score - 5);
+            scoreboardChanged = true;
+        }
+
+        // 磁鐵效果
+        if (p.magnetUntil && p.magnetUntil > now) {
+            let head = p.snake[0];
+            apples.forEach(a => {
+                if (Math.abs(a.x - head.x) < 6 && Math.abs(a.y - head.y) < 6) {
+                    if (a.x < head.x) a.x++; else if (a.x > head.x) a.x--;
+                    if (a.y < head.y) a.y++; else if (a.y > head.y) a.y--;
+                }
+            });
+        }
+
         // 處理方向佇列：用蛇身位置驗證，防止 180 度迴轉
         if (p.nextDir) {
+            let finalDir = { dx: p.nextDir.dx, dy: p.nextDir.dy };
+            // 毒蘋果效果：反向操作
+            if (p.reversedUntil && p.reversedUntil > now) {
+                finalDir.dx = -finalDir.dx;
+                finalDir.dy = -finalDir.dy;
+            }
+
             let neck = p.snake.length > 1 ? p.snake[1] : null;
-            let futureHead = { x: p.snake[0].x + p.nextDir.dx, y: p.snake[0].y + p.nextDir.dy };
-            // 只有不會撞到脖子的方向才接受
+            let futureHead = { x: p.snake[0].x + finalDir.dx, y: p.snake[0].y + finalDir.dy };
             if (!neck || futureHead.x !== neck.x || futureHead.y !== neck.y) {
-                p.dx = p.nextDir.dx;
-                p.dy = p.nextDir.dy;
+                p.dx = finalDir.dx;
+                p.dy = finalDir.dy;
             }
             p.nextDir = null;
         }
         let head = { x: p.snake[0].x + p.dx, y: p.snake[0].y + p.dy };
 
-        if (head.x < 0 || head.x >= GRID_SIZE || head.y < 0 || head.y >= GRID_SIZE) {
+        // 黑洞引力與死亡判定
+        let inBlackHole = false;
+        for (let bh of blackHoles) {
+            let dist = Math.sqrt(Math.pow(head.x - bh.x, 2) + Math.pow(head.y - bh.y, 2));
+            if (dist < bh.r) inBlackHole = true;
+            if (dist < bh.r + 6 && tickCount % 2 === 0) {
+                if (head.x < bh.x) p.dx = 1; else if (head.x > bh.x) p.dx = -1;
+                if (head.y < bh.y) p.dy = 1; else if (head.y > bh.y) p.dy = -1;
+            }
+        }
+
+        if (head.x < 0 || head.x >= GRID_SIZE || head.y < 0 || head.y >= GRID_SIZE || inBlackHole) {
             p.state = 'DEAD';
             io.to(id).emit('gameOver', p.score);
             continue;
@@ -225,19 +294,23 @@ setInterval(() => {
             apples.splice(ateIndex, 1);
             apples.push(spawnApple());
         } else {
-            // 吃特殊蘋果
             if (specialApple && head.x === specialApple.x && head.y === specialApple.y) {
-                p.score += 50;
-                p.superUntil = now + 10000; // 無敵時間 10 秒
-                specialApple = null;
-                scoreboardChanged = true;
+                p.score += 50; p.superUntil = now + 10000; specialApple = null; scoreboardChanged = true;
                 io.emit('killFeed', { msg: `⭐ ${p.name} 獲得無敵狀態！`, color: '#ffd700' });
             } else if (speedApple && head.x === speedApple.x && head.y === speedApple.y) {
-                p.score += 30;
-                p.speedUntil = now + 8000; // 加速 8 秒
-                speedApple = null;
-                scoreboardChanged = true;
+                p.score += 30; p.speedUntil = now + 8000; speedApple = null; scoreboardChanged = true;
                 io.emit('killFeed', { msg: `💨 ${p.name} 獲得加速狀態！`, color: '#00ff88' });
+            } else if (poisonApple && head.x === poisonApple.x && head.y === poisonApple.y) {
+                p.reversedUntil = now + 5000; poisonApple = null;
+                io.emit('killFeed', { msg: `☠️ ${p.name} 中毒了 (方向反轉)！`, color: '#800080' });
+            } else if (magnetApple && head.x === magnetApple.x && head.y === magnetApple.y) {
+                p.score += 20; p.magnetUntil = now + 10000; magnetApple = null; scoreboardChanged = true;
+                io.emit('killFeed', { msg: `🧲 ${p.name} 獲得磁鐵能力！`, color: '#0088ff' });
+            } else if (bombApple && head.x === bombApple.x && head.y === bombApple.y) {
+                let tail = p.snake[p.snake.length - 1];
+                mines.push({ x: tail.x, y: tail.y, t: Date.now(), owner: p.name });
+                bombApple = null;
+                io.emit('killFeed', { msg: `💣 ${p.name} 排出了地雷！`, color: '#555555' });
             } else {
                 p.snake.pop(); // 沒吃到就移除尾巴
             }
@@ -263,6 +336,14 @@ setInterval(() => {
                     if(head.x === p1.snake[i].x && head.y === p1.snake[i].y) deaths.add(id1);
                 }
                 continue;
+            }
+
+            // 觸雷判定
+            for(let i=0; i<mines.length; i++) {
+                if(head.x === mines[i].x && head.y === mines[i].y) {
+                    deaths.add(id1);
+                    io.emit('killFeed', { msg: `💥 ${p1.name} 踩到了地雷！`, color: '#ff0000' });
+                }
             }
 
             let p2Super = p2.superUntil && p2.superUntil > now;
@@ -344,17 +425,25 @@ setInterval(() => {
     }
 
     // 標記 isSuper 給前端特效使用
+    let highestScore = -1;
+    let kingId = null;
     for (let id in players) {
         players[id].isSuper = players[id].superUntil && players[id].superUntil > now;
+        players[id].isKing = false;
+        if (players[id].score > highestScore && players[id].snake.length > 3) {
+            highestScore = players[id].score;
+            kingId = id;
+        }
     }
+    if (kingId) players[kingId].isKing = true;
 
     if(scoreboardChanged) {
         io.emit('updateScoreboard', getScoreboard());
     }
 
-    io.emit('gameState', { players, apples, specialApple, speedApple });
+    io.emit('gameState', { players, apples, specialApple, speedApple, poisonApple, magnetApple, bombApple, mines, blackHoles });
 
-}, 120);
+}, 60);
 
 const PORT = process.env.PORT || 3000;
 http.listen(PORT, () => {
