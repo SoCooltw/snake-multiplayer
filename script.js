@@ -128,6 +128,37 @@ document.addEventListener('keydown', (e) => {
     if (dir) socket.emit('direction', dir);
 });
 
+// 手機滑動控制
+let touchStartX = 0, touchStartY = 0;
+canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+}, { passive: false });
+
+canvas.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    let dx = e.changedTouches[0].clientX - touchStartX;
+    let dy = e.changedTouches[0].clientY - touchStartY;
+    if (Math.abs(dx) < 20 && Math.abs(dy) < 20) return; // 太短不算
+    let dir = null;
+    if (Math.abs(dx) > Math.abs(dy)) {
+        dir = dx > 0 ? { dx: 1, dy: 0 } : { dx: -1, dy: 0 };
+    } else {
+        dir = dy > 0 ? { dx: 0, dy: 1 } : { dx: 0, dy: -1 };
+    }
+    if (dir) socket.emit('direction', dir);
+}, { passive: false });
+
+// 虛擬方向鍵
+['up','down','left','right'].forEach(d => {
+    let btn = document.getElementById('dpad-' + d);
+    if (!btn) return;
+    let dir = d === 'up' ? {dx:0,dy:-1} : d === 'down' ? {dx:0,dy:1} : d === 'left' ? {dx:-1,dy:0} : {dx:1,dy:0};
+    btn.addEventListener('touchstart', (e) => { e.preventDefault(); socket.emit('direction', dir); }, { passive: false });
+    btn.addEventListener('mousedown', (e) => { e.preventDefault(); socket.emit('direction', dir); });
+});
+
 // 初始化星星背景
 let stars = [];
 for (let i = 0; i < 300; i++) {
