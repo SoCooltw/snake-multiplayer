@@ -68,6 +68,7 @@ let players = {};
 let apples = [];
 const NUM_APPLES = 15;
 const GRID_SIZE = 100;
+const MAX_PLAYERS = 10;
 
 function spawnApple() {
     let valid = false;
@@ -96,12 +97,19 @@ setInterval(() => {
     }
 }, 15000); // 15秒產生一顆特殊果實
 
+let speedApple = null;
+setInterval(() => {
+    if (!speedApple && Object.keys(players).length > 0) {
+        speedApple = spawnApple();
+    }
+}, 20000); // 20秒產生一顆加速果實
+
 io.on('connection', (socket) => {
     console.log('連線建立:', socket.id);
 
     socket.on('joinGame', (userData) => {
-        if (Object.keys(players).length >= 4) {
-            socket.emit('serverMessage', '房間已滿 (最多 4 人)！請稍後再試。');
+        if (Object.keys(players).length >= MAX_PLAYERS) {
+            socket.emit('serverMessage', `房間已滿 (最多 ${MAX_PLAYERS} 人)！請稍後再試。`);
             return;
         }
 
@@ -141,7 +149,14 @@ io.on('connection', (socket) => {
 function getScoreboard() {
     let scores = [];
     for (let id in players) {
-        scores.push({ id: id, name: players[id].name, score: players[id].score, color: players[id].color });
+        scores.push({
+            id: id,
+            name: players[id].name,
+            score: players[id].score,
+            color: players[id].color,
+            len: players[id].snake.length,
+            isSuper: players[id].isSuper || false
+        });
     }
     return scores.sort((a,b) => b.score - a.score);
 }
@@ -183,6 +198,13 @@ setInterval(() => {
                 p.superUntil = now + 10000; // 無敵時間 10 秒
                 specialApple = null;
                 scoreboardChanged = true;
+                io.emit('killFeed', { msg: `⭐ ${p.name} 獲得無敵狀態！`, color: '#ffd700' });
+            } else if (speedApple && head.x === speedApple.x && head.y === speedApple.y) {
+                p.score += 30;
+                p.speedUntil = now + 8000; // 加速 8 秒
+                speedApple = null;
+                scoreboardChanged = true;
+                io.emit('killFeed', { msg: `💨 ${p.name} 獲得加速狀態！`, color: '#00ff88' });
             } else {
                 p.snake.pop(); // 沒吃到就移除尾巴
             }
@@ -254,8 +276,28 @@ setInterval(() => {
         }
     }
 
+    // 死亡掉落果實：被殺的蛇身體每隔 3 節掉落一顆蘋果
     for (let id of deaths) {
         if (players[id]) {
+            let deadSnake = players[id].snake;
+            for (let i = 0; i < deadSnake.length; i += 3) {
+                if (apples.length < 80) {
+                    apples.push({ x: deadSnake[i].x, y: deadSnake[i].y });
+                }
+            }
+        }
+    }
+
+    for (let id of deaths) {
+        if (players[id]) {
+            // 找出是誰殺的 (如果有吃人獎勵)
+            let killerName = null;
+            for (let eid in eats) {
+                if (!deaths.has(eid) && players[eid]) killerName = players[eid].name;
+            }
+            if (killerName) {
+                io.emit('killFeed', { msg: `🐍 ${killerName} 吞噬了 ${players[id].name}！`, color: '#ff4444' });
+            }
             players[id].state = 'DEAD';
             io.to(id).emit('gameOver', players[id].score);
         }
@@ -277,7 +319,7 @@ setInterval(() => {
         io.emit('updateScoreboard', getScoreboard());
     }
 
-    io.emit('gameState', { players, apples, specialApple });
+    io.emit('gameState', { players, apples, specialApple, speedApple });
 
 }, 120);
 

@@ -78,16 +78,26 @@ const liveScoreboardEl = document.getElementById('live-scoreboard');
 socket.on('updateScoreboard', (scores) => {
     if(liveScoreboardEl) {
         liveScoreboardEl.innerHTML = '';
-        scores.forEach(s => {
+        scores.forEach((s, idx) => {
             let p = document.createElement('div');
-            p.textContent = `${s.name}: ${s.score}`;
+            let medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '';
+            let superIcon = s.isSuper ? ' ⭐' : '';
+            p.textContent = `${medal} ${s.name}: ${s.score} (🐍${s.len})${superIcon}`;
             p.style.color = s.color;
             p.style.textShadow = `0 0 5px ${s.color}`;
-            p.style.padding = '2px 0';
-            if(s.id === myId) p.style.fontWeight = 'bold';
+            p.style.padding = '3px 0';
+            p.style.fontSize = '0.75rem';
+            if(s.id === myId) { p.style.fontWeight = 'bold'; p.style.borderLeft = `3px solid ${s.color}`; p.style.paddingLeft = '8px'; }
             liveScoreboardEl.appendChild(p);
         });
     }
+});
+
+// 擊殺通知
+let killFeedMessages = [];
+socket.on('killFeed', (data) => {
+    killFeedMessages.push({ ...data, time: Date.now() });
+    if(killFeedMessages.length > 5) killFeedMessages.shift();
 });
 
 // 鍵盤監聽
@@ -182,12 +192,26 @@ socket.on('gameState', (state) => {
 
     // 畫特殊果實 (無敵星星)
     if(state.specialApple) {
-        ctx.shadowBlur = 20;
+        ctx.shadowBlur = 25;
         ctx.shadowColor = '#ffd700';
         ctx.fillStyle = '#ffd700';
         ctx.fillRect(state.specialApple.x * GRID_SIZE, state.specialApple.y * GRID_SIZE, GRID_SIZE, GRID_SIZE);
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(state.specialApple.x * GRID_SIZE + 5, state.specialApple.y * GRID_SIZE + 5, GRID_SIZE - 10, GRID_SIZE - 10);
+        ctx.shadowBlur = 0;
+    }
+
+    // 畫加速果實 (綠色閃電)
+    if(state.speedApple) {
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = '#00ff88';
+        ctx.fillStyle = '#00ff88';
+        ctx.beginPath();
+        ctx.moveTo(state.speedApple.x * GRID_SIZE + GRID_SIZE/2, state.speedApple.y * GRID_SIZE);
+        ctx.lineTo(state.speedApple.x * GRID_SIZE + GRID_SIZE, state.speedApple.y * GRID_SIZE + GRID_SIZE);
+        ctx.lineTo(state.speedApple.x * GRID_SIZE, state.speedApple.y * GRID_SIZE + GRID_SIZE);
+        ctx.closePath();
+        ctx.fill();
         ctx.shadowBlur = 0;
     }
 
@@ -228,6 +252,19 @@ socket.on('gameState', (state) => {
     }
 
     ctx.restore();
+
+    // 畫擊殺通知 (Kill Feed)
+    let now = Date.now();
+    killFeedMessages = killFeedMessages.filter(m => now - m.time < 4000);
+    killFeedMessages.forEach((msg, i) => {
+        let alpha = Math.max(0, 1 - (now - msg.time) / 4000);
+        ctx.fillStyle = msg.color;
+        ctx.globalAlpha = alpha;
+        ctx.font = 'bold 14px sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText(msg.msg, canvas.width - 15, 30 + i * 22);
+    });
+    ctx.globalAlpha = 1;
 
     // 畫出其他玩家的方向提示
     if(myId && state.players[myId] && state.players[myId].state === 'PLAYING') {
