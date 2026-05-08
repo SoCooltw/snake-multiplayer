@@ -194,15 +194,24 @@ socket.on('gameState', (state) => {
         ctx.beginPath(); ctx.moveTo(0, i * GRID_SIZE); ctx.lineTo(SERVER_GRID_SIZE * GRID_SIZE, i * GRID_SIZE); ctx.stroke();
     }
 
-    // 畫蘋果
+    // 畫蘋果 (快過期的會閃爍)
     if(state.apples) {
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = '#ff2a2a';
-        ctx.fillStyle = '#ff2a2a'; 
+        let now = Date.now();
         state.apples.forEach(apple => {
+            let age = now - apple.t;
+            let alpha = 1;
+            // 最後 5 秒開始閃爍
+            if (age > 15000) {
+                alpha = 0.3 + Math.abs(Math.sin(now / 150)) * 0.7;
+            }
+            ctx.globalAlpha = alpha;
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#ff2a2a';
+            ctx.fillStyle = '#ff2a2a'; 
             ctx.fillRect(apple.x * GRID_SIZE + 2, apple.y * GRID_SIZE + 2, GRID_SIZE - 4, GRID_SIZE - 4);
+            ctx.shadowBlur = 0;
         });
-        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 1;
     }
 
     // 畫特殊果實 (無敵星星)

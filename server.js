@@ -70,11 +70,14 @@ const NUM_APPLES = 15;
 const GRID_SIZE = 100;
 const MAX_PLAYERS = 10;
 
+const APPLE_LIFETIME = 20000;  // 紅蘋果 20 秒消失
+const SPECIAL_LIFETIME = 12000; // 特殊果實 12 秒消失
+
 function spawnApple() {
     let valid = false;
     let newApple = {};
     while (!valid) {
-        newApple = { x: Math.floor(Math.random() * GRID_SIZE), y: Math.floor(Math.random() * GRID_SIZE) };
+        newApple = { x: Math.floor(Math.random() * GRID_SIZE), y: Math.floor(Math.random() * GRID_SIZE), t: Date.now() };
         valid = true;
         for (let id in players) {
             for (let segment of players[id].snake) {
@@ -93,16 +96,16 @@ for(let i=0; i<NUM_APPLES; i++) apples.push(spawnApple());
 let specialApple = null;
 setInterval(() => {
     if (!specialApple && Object.keys(players).length > 0) {
-        specialApple = spawnApple();
+        specialApple = { ...spawnApple() };
     }
-}, 15000); // 15秒產生一顆特殊果實
+}, 15000);
 
 let speedApple = null;
 setInterval(() => {
     if (!speedApple && Object.keys(players).length > 0) {
-        speedApple = spawnApple();
+        speedApple = { ...spawnApple() };
     }
-}, 20000); // 20秒產生一顆加速果實
+}, 20000);
 
 io.on('connection', (socket) => {
     console.log('連線建立:', socket.id);
@@ -167,6 +170,18 @@ function getRandomColor() {
 setInterval(() => {
     let now = Date.now();
     let scoreboardChanged = false;
+
+    // 果實過期檢查：紅蘋果過期就重新生成
+    for (let i = apples.length - 1; i >= 0; i--) {
+        if (now - apples[i].t > APPLE_LIFETIME) {
+            apples.splice(i, 1);
+            apples.push(spawnApple());
+        }
+    }
+    // 特殊果實過期
+    if (specialApple && now - specialApple.t > SPECIAL_LIFETIME) specialApple = null;
+    // 加速果實過期
+    if (speedApple && now - speedApple.t > SPECIAL_LIFETIME) speedApple = null;
 
     // 移動蛇與吃蘋果判定
     for (let id in players) {
