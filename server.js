@@ -61,8 +61,16 @@ app.get('/api/me', (req, res) => {
     }
 });
 
-// 讓 Express 讀取靜態檔案
-app.use(express.static(__dirname));
+// 讓 Express 讀取靜態檔案 (禁止快取，確保玩家拿到最新版)
+app.use(express.static(__dirname, {
+    etag: false,
+    maxAge: 0,
+    setHeaders: (res) => {
+        res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        res.set('Pragma', 'no-cache');
+        res.set('Expires', '0');
+    }
+}));
 
 let players = {};
 let apples = [];
