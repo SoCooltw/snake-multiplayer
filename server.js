@@ -45,8 +45,10 @@ app.get('/auth/google', passport.authenticate('google', { scope: ['profile'] }))
 app.get('/auth/google/callback', 
   passport.authenticate('google', { failureRedirect: '/' }),
   function(req, res) {
-    // 登入成功後，導回首頁
-    res.redirect('/');
+    // 登入成功後，確保 session 儲存完成再導回首頁
+    req.session.save(() => {
+        res.redirect('/');
+    });
   }
 );
 
