@@ -106,6 +106,11 @@ setInterval(() => {
     if (!specialApple && Object.keys(players).length > 0) specialApple = { ...spawnApple() };
 }, 15000);
 
+let speedApple = null;
+setInterval(() => {
+    if (!speedApple && Object.keys(players).length > 0 && Math.random() < 0.5) speedApple = { ...spawnApple() };
+}, 20000);
+
 let magnetApple = null;
 setInterval(() => {
     if (!magnetApple && Object.keys(players).length > 0 && Math.random() < 0.5) magnetApple = { ...spawnApple() };
