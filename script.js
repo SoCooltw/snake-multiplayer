@@ -65,6 +65,21 @@ btns.restart.addEventListener('click', () => {
     socket.emit('joinGame', currentUser);
 });
 
+// 訪客模式
+const guestBtn = document.getElementById('btn-guest');
+if(guestBtn) {
+    guestBtn.addEventListener('click', () => {
+        let guestName = '訪客' + Math.floor(Math.random() * 9000 + 1000);
+        currentUser = { name: guestName };
+        btns.googleLogin.style.display = 'none';
+        guestBtn.style.display = 'none';
+        btns.start.classList.remove('hidden');
+        userInfoEl.innerHTML = `👤 ${guestName}`;
+        // 直接開始遊戲
+        socket.emit('joinGame', currentUser);
+    });
+}
+
 socket.on('joined', () => { hideAllScreens(); });
 socket.on('serverMessage', (msg) => { alert(msg); });
 socket.on('gameOver', (score) => {
