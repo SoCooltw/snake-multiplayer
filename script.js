@@ -69,6 +69,9 @@ const userInfoEl = document.getElementById('user-info');
 const finalScoreEl = document.getElementById('final-score');
 const playerNameInput = document.getElementById('player-name');
 const onlineCountEl = document.getElementById('online-count');
+const hudOnlineCountEl = document.getElementById('hud-online-count');
+const hudModeEl = document.getElementById('hud-mode');
+const hudPlayerCountEl = document.getElementById('hud-player-count');
 const spectateTargetEl = document.getElementById('spectate-target');
 
 // 隱藏目前多人連線用不到的功能
@@ -134,12 +137,14 @@ btns.start.addEventListener('click', () => {
     isSpectating = false;
     spectateTargetId = '';
     hasSpectatorCamera = false;
+    if (hudModeEl) hudModeEl.textContent = 'Playing';
     socket.emit('joinGame', buildCurrentUser());
 });
 btns.restart.addEventListener('click', () => {
     isSpectating = false;
     spectateTargetId = '';
     hasSpectatorCamera = false;
+    if (hudModeEl) hudModeEl.textContent = 'Playing';
     socket.emit('joinGame', currentUser);
 });
 
@@ -163,6 +168,8 @@ socket.on('joined', () => { hideAllScreens(); });
 socket.on('serverMessage', (msg) => { alert(msg); });
 socket.on('roomStatus', (status) => {
     if (onlineCountEl) onlineCountEl.textContent = `在線 ${status.players}/${status.maxPlayers}`;
+    if (hudOnlineCountEl) hudOnlineCountEl.textContent = `${status.players}/${status.maxPlayers}`;
+    if (hudPlayerCountEl) hudPlayerCountEl.textContent = `${status.players} players`;
 });
 socket.on('gameOver', (score) => {
     // 不 hideAllScreens：讓遊戲畫面繼續在半透明 overlay 後面跑（觀戰模式）
@@ -170,6 +177,7 @@ socket.on('gameOver', (score) => {
     finalScoreEl.textContent = score;
     screens.over.classList.remove('hidden');
     isSpectating = true;
+    if (hudModeEl) hudModeEl.textContent = 'Spectating';
     spectateTargetId = '';
     centerSpectatorCamera();
     // 死亡後自動 focus 聊天輸入框
@@ -186,7 +194,7 @@ socket.on('updateScoreboard', (scores) => {
         if (!scores.length) {
             const empty = document.createElement('div');
             empty.className = 'score-empty';
-            empty.textContent = '等待玩家加入戰局';
+            empty.textContent = 'Waiting for players';
             liveScoreboardEl.appendChild(empty);
             return;
         }

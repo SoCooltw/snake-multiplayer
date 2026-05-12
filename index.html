@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>貪吃蛇遊戲 - 期末專題</title>
+    <title>Snake Arena - Final Project</title>
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
@@ -15,35 +15,49 @@
 <body>
     <div class="game-container" id="game-container">
         <div class="header">
-            <h1 id="game-title">貪吃蛇競技場</h1>
-            <div class="top-buttons">
-                <button id="btn-settings">設定</button>
-                <button id="btn-leaderboard">排行榜</button>
-            </div>
+            <section class="arena-status side-panel">
+                <p class="screen-kicker">MULTIPLAYER ARENA</p>
+                <h1 id="game-title">Snake Arena</h1>
+                <div class="arena-status-grid">
+                    <div>
+                        <span>Online</span>
+                        <strong id="hud-online-count">0/10</strong>
+                    </div>
+                    <div>
+                        <span>Mode</span>
+                        <strong id="hud-mode">Lobby</strong>
+                    </div>
+                </div>
+                <div class="top-buttons">
+                    <button id="btn-settings">Settings</button>
+                    <button id="btn-leaderboard">Ranks</button>
+                    <button id="btn-toggle-ui" title="Show or hide item guide">Guide</button>
+                </div>
+            </section>
             <section class="side-panel score-board">
                 <div class="panel-title-row">
-                    <p class="panel-title">即時戰況</p>
-                    <button id="btn-toggle-ui" class="icon-action" title="顯示或隱藏道具說明">說明</button>
+                    <p class="panel-title">Live Battle</p>
+                    <span class="panel-badge" id="hud-player-count">0 players</span>
                 </div>
                 <div id="live-scoreboard" class="arena-scoreboard"></div>
             </section>
             <section class="side-panel chat-panel">
-                <p class="panel-title">聊天室</p>
+                <p class="panel-title">Chat</p>
                 <div id="chat-messages"></div>
                 <div class="chat-input-row">
-                    <input type="text" id="chat-input" placeholder="輸入訊息... (Enter 發送)" maxlength="60" autocomplete="off">
+                    <input type="text" id="chat-input" placeholder="Message... (Enter to send)" maxlength="60" autocomplete="off">
                 </div>
             </section>
             <section class="side-panel controls-hint" id="controls-hint">
-                <p>道具與操作<br>
-                空白鍵：消耗長度衝刺<br>
-                頭對撞：大吃小蛇<br>
-                金蘋果：10 秒無敵<br>
-                藍蘋果：磁鐵吸取果實<br>
-                紫蘋果：反向操作中毒<br>
-                黑蘋果：吃下後排泄地雷<br>
-                黑洞：小心被吸入死亡<br>
-                皇冠：擊殺第一名獲大量分數</p>
+                <p>Item Guide<br>
+                Space: dash by spending length<br>
+                Head clash: bigger snake wins<br>
+                Gold apple: 10s invincible<br>
+                Blue apple: magnet fruit pull<br>
+                Purple apple: reverse controls<br>
+                Black apple: drops mines after eating<br>
+                Black hole: avoid the pull<br>
+                Crown: defeat leader for bonus score</p>
             </section>
         </div>
 
