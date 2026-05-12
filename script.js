@@ -13,12 +13,12 @@ const screens = {
 
 const btns = {
     start: document.getElementById('btn-start'),
-    restart: document.getElementById('btn-restart'),
-    googleLogin: document.getElementById('btn-google-login')
+    restart: document.getElementById('btn-restart')
 };
 
 const userInfoEl = document.getElementById('user-info');
 const finalScoreEl = document.getElementById('final-score');
+const playerNameInput = document.getElementById('player-name');
 
 // 隱藏目前多人連線用不到的功能
 ['btn-resume-save','btn-show-cheat','cheat-text','btn-leaderboard'].forEach(id => {
@@ -50,20 +50,8 @@ document.getElementById('theme-select').addEventListener('change', (e) => {
 
 let currentUser = null;
 
-// 檢查使用者是否已經使用 Google 登入
-fetch('/api/me')
-    .then(res => res.json())
-    .then(data => {
-        if(data.loggedIn) {
-            currentUser = data.user;
-            // 隱藏登入按鈕，顯示開始遊戲按鈕
-            btns.googleLogin.style.display = 'none';
-            btns.start.classList.remove('hidden');
-            // 顯示大頭貼與名字
-            let img = currentUser.picture ? `<img src="${currentUser.picture}" style="width:24px; border-radius:50%; vertical-align:middle; margin-right:5px;">` : '';
-            userInfoEl.innerHTML = `${img}歡迎, ${currentUser.name}`;
-        }
-    });
+const savedPlayerName = localStorage.getItem('playerName') || '';
+if (playerNameInput) playerNameInput.value = savedPlayerName;
 
 function hideAllScreens() {
     Object.values(screens).forEach(s => { if(s) s.classList.add('hidden'); });
@@ -79,26 +67,29 @@ socket.on('connect', () => {
     screens.start.classList.remove('hidden');
 });
 
+function buildCurrentUser() {
+    const name = playerNameInput ? playerNameInput.value.trim() : '';
+    const finalName = name || '玩家' + Math.floor(Math.random() * 9000 + 1000);
+    localStorage.setItem('playerName', finalName);
+    currentUser = { name: finalName };
+    userInfoEl.textContent = `👤 ${finalName}`;
+    return currentUser;
+}
+
 // 點擊開始與重新開始按鈕 (送出使用者資料給伺服器)
 btns.start.addEventListener('click', () => {
-    socket.emit('joinGame', currentUser);
+    socket.emit('joinGame', buildCurrentUser());
 });
 btns.restart.addEventListener('click', () => {
     socket.emit('joinGame', currentUser);
 });
 
-// 訪客模式
-const guestBtn = document.getElementById('btn-guest');
-if(guestBtn) {
-    guestBtn.addEventListener('click', () => {
-        let guestName = '訪客' + Math.floor(Math.random() * 9000 + 1000);
-        currentUser = { name: guestName };
-        btns.googleLogin.style.display = 'none';
-        guestBtn.style.display = 'none';
-        btns.start.classList.remove('hidden');
-        userInfoEl.innerHTML = `👤 ${guestName}`;
-        // 直接開始遊戲
-        socket.emit('joinGame', currentUser);
+if (playerNameInput) {
+    playerNameInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            btns.start.click();
+        }
     });
 }
 
@@ -158,7 +149,7 @@ if (btnToggleUi && controlsHint) {
 
 // 鍵盤監聽（聊天框 focus 時不攔截）
 document.addEventListener('keydown', (e) => {
-    if (document.activeElement && document.activeElement.id === 'chat-input') return;
+    if (document.activeElement && ['chat-input', 'player-name'].includes(document.activeElement.id)) return;
     if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight", " "].includes(e.key)) e.preventDefault();
     if (e.key === ' ') { socket.emit('dash', true); return; }
     let dir = null;
@@ -171,7 +162,7 @@ document.addEventListener('keydown', (e) => {
     if (dir) socket.emit('direction', dir);
 });
 document.addEventListener('keyup', (e) => {
-    if (document.activeElement && document.activeElement.id === 'chat-input') return;
+    if (document.activeElement && ['chat-input', 'player-name'].includes(document.activeElement.id)) return;
     if (e.key === ' ') socket.emit('dash', false);
 });
 

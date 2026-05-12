@@ -3,9 +3,6 @@ const express = require('express');
 const app = express();
 const http = require('http').createServer(app);
 const io = require('socket.io')(http);
-const session = require('express-session');
-const passport = require('passport');
-const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const {
     GRID_SIZE,
     NUM_APPLES,
@@ -20,60 +17,6 @@ const {
     MAX_PLAYER_NAME_LENGTH
 } = require('./gameConfig');
 const { ITEM_TYPES } = require('./itemTypes');
-
-// 設定 Session (在 Render 代理後方需要 trust proxy)
-app.set('trust proxy', 1);
-app.use(session({
-    secret: process.env.SESSION_SECRET || 'secret',
-    resave: false,
-    saveUninitialized: false
-}));
-
-// 初始化 Passport
-app.use(passport.initialize());
-app.use(passport.session());
-
-passport.serializeUser((user, done) => { done(null, user); });
-passport.deserializeUser((user, done) => { done(null, user); });
-
-// 設定 Google OAuth 策略
-passport.use(new GoogleStrategy({
-    clientID: process.env.GOOGLE_CLIENT_ID,
-    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: "/auth/google/callback",
-    proxy: true
-  },
-  function(accessToken, refreshToken, profile, cb) {
-      // 擷取我們需要的資料 (名字與大頭貼)
-      return cb(null, {
-          id: profile.id,
-          name: profile.displayName,
-          picture: profile.photos[0] ? profile.photos[0].value : null
-      });
-  }
-));
-
-// 登入相關路由
-app.get('/auth/google', passport.authenticate('google', { scope: ['profile'] }));
-
-app.get('/auth/google/callback', 
-  passport.authenticate('google', { failureRedirect: '/' }),
-  function(req, res) {
-    // 登入成功後，確保 session 儲存完成再導回首頁
-    req.session.save(() => {
-        res.redirect('/');
-    });
-  }
-);
-
-// 讓前端可以取得目前登入者的資訊
-app.get('/api/me', (req, res) => {
-    if (req.isAuthenticated()) {
-        res.json({ loggedIn: true, user: req.user });
-    } else {
-        res.json({ loggedIn: false });
-    }
-});
 
 // 讓 Express 讀取靜態檔案 (禁止快取，確保玩家拿到最新版)
 app.use(express.static(__dirname, {

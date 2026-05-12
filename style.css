@@ -235,6 +235,32 @@ input[type="checkbox"] {
     accent-color: var(--primary-color);
 }
 
+.name-entry {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    width: min(80%, 320px);
+}
+
+#player-name {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.55);
+    border: 2px solid var(--primary-color);
+    color: #fff;
+    font-family: sans-serif;
+    font-size: 1rem;
+    padding: 10px 12px;
+    text-align: center;
+    outline: none;
+    box-shadow: 0 0 10px rgba(0, 229, 255, 0.25) inset;
+}
+
+#player-name:focus {
+    border-color: #fff;
+    box-shadow: 0 0 12px var(--primary-color);
+}
+
 #leaderboard-list {
     font-size: 0.7rem;
     color: #fff;
