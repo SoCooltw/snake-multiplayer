@@ -494,9 +494,9 @@ input[type="checkbox"] {
 .controls-hint {
     position: absolute;
     left: var(--hud-edge);
-    bottom: calc(var(--hud-edge) + 170px);
+    bottom: calc(var(--hud-edge) + min(260px, 30vh) + 14px);
     width: min(360px, 34vw);
-    max-height: 28vh;
+    max-height: min(32vh, calc(100vh - min(260px, 30vh) - 96px));
     overflow-y: auto;
     margin-top: 0;
     font-size: 0.72rem;
@@ -517,13 +517,15 @@ input[type="checkbox"] {
     left: var(--hud-edge);
     bottom: var(--hud-edge);
     width: min(390px, 36vw);
+    height: min(260px, 30vh);
     display: flex;
     flex-direction: column;
     gap: 0.55rem;
 }
 
 #chat-messages {
-    height: min(120px, 18vh);
+    flex: 1;
+    min-height: 0;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
