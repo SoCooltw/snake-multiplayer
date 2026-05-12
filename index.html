@@ -9,10 +9,19 @@
     <meta http-equiv="Expires" content="0">
     <meta name="theme-color" content="#00e5ff">
     <link rel="manifest" href="/manifest.webmanifest">
-    <link rel="stylesheet" href="style.css?v=4">
+    <link rel="stylesheet" href="style.css?v=5">
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
+    <div id="rotate-screen" class="rotate-screen">
+        <div class="rotate-panel">
+            <p class="screen-kicker">MOBILE PLAY</p>
+            <h2>Rotate to Landscape</h2>
+            <p>For the best control experience, turn your phone sideways before playing.</p>
+            <button id="btn-lock-landscape">Lock Landscape</button>
+            <p id="orientation-lock-status" class="orientation-lock-status"></p>
+        </div>
+    </div>
     <div class="game-container" id="game-container">
         <div class="header">
             <section class="arena-status side-panel">
@@ -144,7 +153,7 @@
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
-    <script src="script.js?v=4"></script>
+    <script src="script.js?v=5"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {

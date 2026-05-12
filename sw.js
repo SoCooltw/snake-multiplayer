@@ -1,9 +1,9 @@
-const CACHE_NAME = 'snake-game-tw-v3';
+const CACHE_NAME = 'snake-game-tw-v4';
 const APP_SHELL = [
     '/',
     '/index.html',
-    '/style.css?v=4',
-    '/script.js?v=4',
+    '/style.css?v=5',
+    '/script.js?v=5',
     '/manifest.webmanifest',
     '/icons/icon-192.svg',
     '/icons/icon-512.svg'

@@ -73,8 +73,35 @@ const hudOnlineCountEl = document.getElementById('hud-online-count');
 const hudModeEl = document.getElementById('hud-mode');
 const hudPlayerCountEl = document.getElementById('hud-player-count');
 const spectateTargetEl = document.getElementById('spectate-target');
+const btnLockLandscape = document.getElementById('btn-lock-landscape');
+const orientationLockStatusEl = document.getElementById('orientation-lock-status');
 
 // 隱藏目前多人連線用不到的功能
+async function requestLandscapeLock() {
+    const root = document.documentElement;
+    try {
+        if (!document.fullscreenElement && root.requestFullscreen) {
+            await root.requestFullscreen();
+        }
+        if (screen.orientation && screen.orientation.lock) {
+            await screen.orientation.lock('landscape');
+            if (orientationLockStatusEl) orientationLockStatusEl.textContent = 'Landscape locked.';
+        } else if (orientationLockStatusEl) {
+            orientationLockStatusEl.textContent = 'This browser does not support orientation lock.';
+        }
+    } catch (err) {
+        if (orientationLockStatusEl) {
+            orientationLockStatusEl.textContent = 'Please rotate your phone and use system rotation lock if needed.';
+        }
+    } finally {
+        setTimeout(resizeCanvasToBoard, 300);
+    }
+}
+
+if (btnLockLandscape) {
+    btnLockLandscape.addEventListener('click', requestLandscapeLock);
+}
+
 ['btn-resume-save','btn-show-cheat','cheat-text','btn-leaderboard'].forEach(id => {
     let el = document.getElementById(id);
     if(el) el.classList.add('hidden');

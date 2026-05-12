@@ -375,6 +375,41 @@ canvas {
     display: none !important;
 }
 
+.rotate-screen {
+    display: none;
+}
+
+.rotate-panel {
+    width: min(88vw, 420px);
+    border: 1px solid var(--primary-color);
+    background: rgba(5, 12, 18, 0.94);
+    box-shadow: 0 0 24px rgba(0, 229, 255, 0.24), inset 0 0 18px rgba(0, 229, 255, 0.12);
+    padding: 1.25rem;
+    text-align: center;
+}
+
+.rotate-panel h2 {
+    color: var(--primary-color);
+    font-size: 1rem;
+    line-height: 1.5;
+    margin: 0.8rem 0;
+    text-shadow: 0 0 12px var(--primary-color);
+}
+
+.rotate-panel p {
+    font-family: sans-serif;
+    color: #d9faff;
+    line-height: 1.5;
+    margin-bottom: 1rem;
+}
+
+.orientation-lock-status {
+    min-height: 1.2rem;
+    margin: 0.75rem 0 0 !important;
+    color: #9eefff !important;
+    font-size: 0.82rem;
+}
+
 .overlay h2 {
     font-size: 1.2rem;
     color: var(--apple-color);
@@ -831,5 +866,65 @@ input[type="checkbox"] {
     button {
         font-size: 0.6rem;
         padding: 8px 16px;
+    }
+}
+
+@media (max-width: 900px) and (orientation: portrait) {
+    .rotate-screen {
+        position: fixed;
+        inset: 0;
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+        background: radial-gradient(circle at center, #1b2735 0%, #05050f 72%);
+    }
+
+    .game-container {
+        filter: blur(2px);
+        pointer-events: none;
+    }
+}
+
+@media (max-height: 540px) and (orientation: landscape) {
+    .arena-status {
+        top: var(--hud-edge);
+        left: var(--hud-edge);
+        right: auto;
+        width: min(230px, 30vw);
+        padding: 0.45rem;
+    }
+
+    .arena-status h1,
+    .arena-status-grid {
+        display: none;
+    }
+
+    .top-buttons {
+        gap: 0.35rem;
+    }
+
+    .top-buttons button {
+        min-height: 30px;
+        font-size: 0.48rem;
+    }
+
+    .game-board-container {
+        margin-top: 0;
+        width: min(calc(100vh - 16px), calc(100vw - 280px));
+        max-height: calc(100vh - 16px);
+    }
+
+    #mobile-controls {
+        left: 72px;
+        bottom: 50%;
+        transform: translateY(50%);
+    }
+
+    .dpad-btn {
+        width: 58px;
+        height: 58px;
+        font-size: 1.35rem;
     }
 }
