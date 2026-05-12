@@ -1,6 +1,6 @@
 {
   "name": "snake_game",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Multiplayer snake arena",
   "main": "desktop/main.cjs",
   "scripts": {
