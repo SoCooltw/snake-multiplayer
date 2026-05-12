@@ -187,6 +187,8 @@ socket.on('updateScoreboard', (scores) => {
         scores.forEach((s, idx) => {
             const row = document.createElement('div');
             row.className = 'score-row';
+            if (idx === 0) row.classList.add('score-row-leader');
+            if (idx < 3) row.classList.add('score-row-podium');
             if (s.id === myId) row.classList.add('score-row-self');
             row.style.setProperty('--player-color', s.color);
 
@@ -206,7 +208,7 @@ socket.on('updateScoreboard', (scores) => {
 
             const points = document.createElement('span');
             points.className = 'score-points';
-            points.textContent = `${s.score} pts`;
+            points.textContent = `${s.score} 分`;
 
             top.append(name, points);
 

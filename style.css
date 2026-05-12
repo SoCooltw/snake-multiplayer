@@ -8,6 +8,7 @@
     --panel-bg: rgba(5, 12, 18, 0.72);
     --panel-border: rgba(0, 229, 255, 0.45);
     --font-main: 'Press Start 2P', cursive;
+    --hud-edge: clamp(8px, 1.2vw, 18px);
 }
 
 [data-theme="cyberpunk"] {
@@ -62,10 +63,10 @@ body {
     height: 100vh;
     min-height: 100vh;
     transition: all 0.5s;
-    display: grid;
-    grid-template-columns: 260px minmax(0, 1fr);
-    align-items: stretch;
-    gap: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
 }
 
 .game-container::before {
@@ -81,34 +82,35 @@ body {
 }
 
 .header {
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-    width: 260px;
-    min-width: 260px;
-    max-width: 260px;
-    gap: 0.85rem;
-    padding: 1.25rem 0.75rem;
-    border-right: 4px solid var(--primary-color);
-    box-shadow: 8px 0 24px rgba(0, 229, 255, 0.18);
-    background: linear-gradient(90deg, rgba(5, 12, 18, 0.92), rgba(5, 12, 18, 0.72));
-    overflow-y: auto;
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    pointer-events: none;
 }
 
 h1 {
-    font-size: 1.05rem;
+    position: absolute;
+    top: var(--hud-edge);
+    left: var(--hud-edge);
+    max-width: min(320px, 44vw);
+    font-size: clamp(0.72rem, 1vw, 1.05rem);
     color: var(--primary-color);
-    margin-bottom: 0.5rem;
+    margin-bottom: 0;
     text-shadow: 0 0 10px var(--primary-color);
     transition: all 0.5s;
-    text-align: center;
+    text-align: left;
+    pointer-events: auto;
 }
 
 .top-buttons {
+    position: absolute;
+    top: calc(var(--hud-edge) + 2rem);
+    left: var(--hud-edge);
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     gap: 0.6rem;
     margin-bottom: 0;
+    pointer-events: auto;
 }
 
 .top-buttons button {
@@ -118,14 +120,21 @@ h1 {
 }
 
 .side-panel {
-    background: var(--panel-bg);
+    background: rgba(5, 12, 18, 0.62);
     border: 1px solid var(--panel-border);
     box-shadow: 0 0 12px rgba(0, 229, 255, 0.12) inset;
+    backdrop-filter: blur(10px);
     padding: 0.9rem;
     text-align: left;
+    pointer-events: auto;
 }
 
 .score-board {
+    position: absolute;
+    top: var(--hud-edge);
+    right: var(--hud-edge);
+    width: min(340px, 34vw);
+    max-height: min(62vh, 560px);
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
@@ -143,6 +152,8 @@ h1 {
     display: flex;
     flex-direction: column;
     gap: 0.55rem;
+    overflow-y: auto;
+    padding-right: 2px;
 }
 
 .score-row {
@@ -151,7 +162,7 @@ h1 {
     grid-template-columns: 30px minmax(0, 1fr);
     gap: 0.55rem;
     align-items: center;
-    padding: 0.55rem;
+    padding: 0.5rem;
     border: 1px solid rgba(255, 255, 255, 0.08);
     background: linear-gradient(90deg, rgba(255,255,255,0.05), rgba(255,255,255,0.015));
     box-shadow: inset 3px 0 0 var(--player-color);
@@ -160,6 +171,20 @@ h1 {
 .score-row-self {
     border-color: var(--player-color);
     box-shadow: inset 3px 0 0 var(--player-color), 0 0 12px rgba(0, 229, 255, 0.18);
+}
+
+.score-row-podium {
+    background: linear-gradient(90deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
+}
+
+.score-row-leader {
+    border-color: var(--gold-apple);
+    box-shadow: inset 3px 0 0 var(--gold-apple), 0 0 18px rgba(243, 230, 0, 0.16);
+}
+
+.score-row-leader .score-rank {
+    border-color: var(--gold-apple);
+    color: var(--gold-apple);
 }
 
 .score-rank {
@@ -255,7 +280,7 @@ h1 {
 
 .game-board-container {
     position: relative;
-    width: min(100%, 100vh);
+    width: min(100vw, 100vh);
     max-width: none;
     max-height: 100vh;
     aspect-ratio: 1/1;
@@ -467,6 +492,12 @@ input[type="checkbox"] {
 }
 
 .controls-hint {
+    position: absolute;
+    left: var(--hud-edge);
+    bottom: calc(var(--hud-edge) + 170px);
+    width: min(360px, 34vw);
+    max-height: 28vh;
+    overflow-y: auto;
     margin-top: 0;
     font-size: 0.72rem;
     color: var(--primary-color);
@@ -482,13 +513,17 @@ input[type="checkbox"] {
 
 /* 聊天面板 */
 .chat-panel {
+    position: absolute;
+    left: var(--hud-edge);
+    bottom: var(--hud-edge);
+    width: min(390px, 36vw);
     display: flex;
     flex-direction: column;
     gap: 0.55rem;
 }
 
 #chat-messages {
-    height: 120px;
+    height: min(120px, 18vh);
     overflow-y: auto;
     display: flex;
     flex-direction: column;
@@ -580,11 +615,17 @@ input[type="checkbox"] {
 
 /* 手機虛擬方向鍵 */
 #mobile-controls {
+    position: absolute;
+    left: 50%;
+    bottom: var(--hud-edge);
+    z-index: 24;
+    transform: translateX(-50%);
     display: none;
     flex-direction: column;
     align-items: center;
     gap: 5px;
-    margin-top: 10px;
+    margin-top: 0;
+    pointer-events: auto;
 }
 .dpad-row {
     display: flex;
@@ -616,59 +657,65 @@ input[type="checkbox"] {
 /* 手機版排版 */
 @media (max-width: 768px) {
     body {
-        align-items: flex-start;
+        align-items: center;
         justify-content: center;
-        padding: 5px;
-        overflow: auto;
+        padding: 0;
+        overflow: hidden;
     }
     .game-container {
         display: flex;
-        flex-direction: column;
-        padding: 0.5rem;
-        gap: 0.5rem;
-        width: 100%;
-        height: auto;
-        min-height: auto;
-        max-width: 100%;
-        border: 2px solid var(--primary-color);
-        box-shadow: 0 0 10px var(--primary-color);
-        background: var(--bg-color);
-    }
-    .header {
-        min-width: unset;
-        max-width: none;
-        width: 100%;
-        flex-direction: row;
-        flex-wrap: wrap;
-        gap: 5px;
-        align-items: center;
+        align-items: flex-start;
+        justify-content: center;
         padding: 0;
-        border-right: 0;
+        gap: 0;
+        width: 100vw;
+        height: 100vh;
+        min-height: 100vh;
+        max-width: 100%;
+        border: 0;
         box-shadow: none;
         background: transparent;
-        overflow: visible;
+    }
+    .header {
+        position: absolute;
+        inset: 0;
+        z-index: 20;
+        min-width: 0;
+        max-width: none;
+        width: auto;
+        border-right: 0;
+        box-shadow: none;
+        pointer-events: none;
     }
     .header h1 {
-        font-size: 0.9rem;
-        margin-bottom: 0;
-        width: 100%;
+        display: none;
     }
     .controls-hint {
         display: none;
     }
     .top-buttons {
-        display: none;
+        top: auto;
+        left: var(--hud-edge);
+        bottom: var(--hud-edge);
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
     }
     .score-board {
-        width: 100%;
+        top: var(--hud-edge);
+        left: var(--hud-edge);
+        right: var(--hud-edge);
+        width: auto;
+        max-height: 30vh;
         padding: 0.5rem;
         font-size: 0.7rem;
     }
     .chat-panel {
-        width: 100%;
+        display: none;
     }
     .game-board-container {
-        max-width: 100%;
+        width: min(100vw, calc(100vh - 150px));
+        max-height: calc(100vh - 150px);
         border-width: 2px;
     }
     #mobile-controls {
