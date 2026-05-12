@@ -20,6 +20,7 @@ const userInfoEl = document.getElementById('user-info');
 const finalScoreEl = document.getElementById('final-score');
 const playerNameInput = document.getElementById('player-name');
 const onlineCountEl = document.getElementById('online-count');
+const spectateTargetEl = document.getElementById('spectate-target');
 
 // 隱藏目前多人連線用不到的功能
 ['btn-resume-save','btn-show-cheat','cheat-text','btn-leaderboard'].forEach(id => {
@@ -50,6 +51,8 @@ document.getElementById('theme-select').addEventListener('change', (e) => {
 });
 
 let currentUser = null;
+let isSpectating = false;
+let spectateTargetId = '';
 
 const savedPlayerName = localStorage.getItem('playerName') || '';
 if (playerNameInput) playerNameInput.value = savedPlayerName;
@@ -79,11 +82,21 @@ function buildCurrentUser() {
 
 // 點擊開始與重新開始按鈕 (送出使用者資料給伺服器)
 btns.start.addEventListener('click', () => {
+    isSpectating = false;
+    spectateTargetId = '';
     socket.emit('joinGame', buildCurrentUser());
 });
 btns.restart.addEventListener('click', () => {
+    isSpectating = false;
+    spectateTargetId = '';
     socket.emit('joinGame', currentUser);
 });
+
+if (spectateTargetEl) {
+    spectateTargetEl.addEventListener('change', () => {
+        spectateTargetId = spectateTargetEl.value;
+    });
+}
 
 if (playerNameInput) {
     playerNameInput.addEventListener('keydown', (e) => {
@@ -104,9 +117,11 @@ socket.on('gameOver', (score) => {
     Object.values(screens).forEach(s => { if (s !== screens.over) s.classList.add('hidden'); });
     finalScoreEl.textContent = score;
     screens.over.classList.remove('hidden');
+    isSpectating = true;
     // 死亡後自動 focus 聊天輸入框
     const chatInput = document.getElementById('chat-input');
-    if (chatInput) setTimeout(() => chatInput.focus(), 200);
+    const isTouchDevice = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+    if (chatInput && !isTouchDevice) setTimeout(() => chatInput.focus(), 200);
 });
 
 // 更新分數
@@ -230,26 +245,44 @@ document.addEventListener('keyup', (e) => {
     if (e.key === ' ') socket.emit('dash', false);
 });
 
-// 手機滑動控制
+function emitDirection(dir) {
+    socket.emit('direction', dir);
+}
+
+function directionFromDelta(dx, dy, minDistance = 12) {
+    if (Math.abs(dx) < minDistance && Math.abs(dy) < minDistance) return null;
+    if (Math.abs(dx) > Math.abs(dy)) return dx > 0 ? { dx: 1, dy: 0 } : { dx: -1, dy: 0 };
+    return dy > 0 ? { dx: 0, dy: 1 } : { dx: 0, dy: -1 };
+}
+
+// 手機滑動控制：拖曳中即可換方向，不必等放開
 let touchStartX = 0, touchStartY = 0;
+let lastSwipeDir = null;
 canvas.addEventListener('touchstart', (e) => {
     e.preventDefault();
     touchStartX = e.touches[0].clientX;
     touchStartY = e.touches[0].clientY;
+    lastSwipeDir = null;
+}, { passive: false });
+
+canvas.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    const dx = e.touches[0].clientX - touchStartX;
+    const dy = e.touches[0].clientY - touchStartY;
+    const dir = directionFromDelta(dx, dy);
+    if (!dir) return;
+    const key = `${dir.dx},${dir.dy}`;
+    if (key !== lastSwipeDir) {
+        emitDirection(dir);
+        lastSwipeDir = key;
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+    }
 }, { passive: false });
 
 canvas.addEventListener('touchend', (e) => {
     e.preventDefault();
-    let dx = e.changedTouches[0].clientX - touchStartX;
-    let dy = e.changedTouches[0].clientY - touchStartY;
-    if (Math.abs(dx) < 20 && Math.abs(dy) < 20) return; // 太短不算
-    let dir = null;
-    if (Math.abs(dx) > Math.abs(dy)) {
-        dir = dx > 0 ? { dx: 1, dy: 0 } : { dx: -1, dy: 0 };
-    } else {
-        dir = dy > 0 ? { dx: 0, dy: 1 } : { dx: 0, dy: -1 };
-    }
-    if (dir) socket.emit('direction', dir);
+    lastSwipeDir = null;
 }, { passive: false });
 
 // 虛擬方向鍵
@@ -257,17 +290,37 @@ canvas.addEventListener('touchend', (e) => {
     let btn = document.getElementById('dpad-' + d);
     if (!btn) return;
     let dir = d === 'up' ? {dx:0,dy:-1} : d === 'down' ? {dx:0,dy:1} : d === 'left' ? {dx:-1,dy:0} : {dx:1,dy:0};
-    btn.addEventListener('touchstart', (e) => { e.preventDefault(); socket.emit('direction', dir); }, { passive: false });
-    btn.addEventListener('mousedown', (e) => { e.preventDefault(); socket.emit('direction', dir); });
+    const pressDirection = (e) => {
+        e.preventDefault();
+        emitDirection(dir);
+        btn.classList.add('dpad-active');
+    };
+    const releaseDirection = (e) => {
+        e.preventDefault();
+        btn.classList.remove('dpad-active');
+    };
+    btn.addEventListener('pointerdown', pressDirection);
+    btn.addEventListener('pointerup', releaseDirection);
+    btn.addEventListener('pointercancel', releaseDirection);
+    btn.addEventListener('pointerleave', releaseDirection);
 });
 
 const dpadDash = document.getElementById('dpad-dash');
 if (dpadDash) {
-    dpadDash.addEventListener('touchstart', (e) => { e.preventDefault(); socket.emit('dash', true); }, { passive: false });
-    dpadDash.addEventListener('touchend', (e) => { e.preventDefault(); socket.emit('dash', false); }, { passive: false });
-    dpadDash.addEventListener('mousedown', (e) => { e.preventDefault(); socket.emit('dash', true); });
-    dpadDash.addEventListener('mouseup', (e) => { e.preventDefault(); socket.emit('dash', false); });
-    dpadDash.addEventListener('mouseleave', (e) => { e.preventDefault(); socket.emit('dash', false); });
+    const startDash = (e) => {
+        e.preventDefault();
+        dpadDash.classList.add('dpad-active');
+        socket.emit('dash', true);
+    };
+    const stopDash = (e) => {
+        e.preventDefault();
+        dpadDash.classList.remove('dpad-active');
+        socket.emit('dash', false);
+    };
+    dpadDash.addEventListener('pointerdown', startDash);
+    dpadDash.addEventListener('pointerup', stopDash);
+    dpadDash.addEventListener('pointercancel', stopDash);
+    dpadDash.addEventListener('pointerleave', stopDash);
 }
 
 // 聊天
@@ -397,16 +450,53 @@ function drawNormalApple(apple, alpha) {
     ctx.restore();
 }
 
+function updateSpectatorTargets(players) {
+    if (!spectateTargetEl || !isSpectating) return;
+    const livingPlayers = Object.values(players).filter(p => p.state === 'PLAYING');
+    const existingValue = spectateTargetEl.value;
+
+    spectateTargetEl.innerHTML = '';
+    const overview = document.createElement('option');
+    overview.value = '';
+    overview.textContent = '全圖視角';
+    spectateTargetEl.appendChild(overview);
+
+    livingPlayers.forEach(p => {
+        const option = document.createElement('option');
+        option.value = p.id;
+        option.textContent = `${p.name} (${p.score})`;
+        spectateTargetEl.appendChild(option);
+    });
+
+    if (existingValue && players[existingValue]) {
+        spectateTargetEl.value = existingValue;
+        spectateTargetId = existingValue;
+    } else if (spectateTargetId && players[spectateTargetId]) {
+        spectateTargetEl.value = spectateTargetId;
+    } else if (livingPlayers.length > 0) {
+        spectateTargetId = livingPlayers[0].id;
+        spectateTargetEl.value = spectateTargetId;
+    } else {
+        spectateTargetId = '';
+        spectateTargetEl.value = '';
+    }
+}
+
 // 繪製遊戲畫面
 socket.on('gameState', (state) => {
     const SERVER_GRID_SIZE = 100; // 對應後端的新尺寸
+    updateSpectatorTargets(state.players);
     
-    // 計算相機位置 (如果自己活著，跟隨自己；否則置中)
+    // 計算相機位置 (活著跟隨自己；觀戰可跟隨指定玩家；否則置中)
     let camX = 0;
     let camY = 0;
     let mySnake = null;
-    if (myId && state.players[myId] && state.players[myId].state === 'PLAYING') {
-        mySnake = state.players[myId].snake[0];
+    const followedId = (myId && state.players[myId] && state.players[myId].state === 'PLAYING')
+        ? myId
+        : spectateTargetId;
+
+    if (followedId && state.players[followedId] && state.players[followedId].state === 'PLAYING') {
+        mySnake = state.players[followedId].snake[0];
         let targetX = mySnake.x * GRID_SIZE + GRID_SIZE / 2;
         let targetY = mySnake.y * GRID_SIZE + GRID_SIZE / 2;
         camX = canvas.width / 2 - targetX;
@@ -624,13 +714,13 @@ socket.on('gameState', (state) => {
     });
 
     // 畫出其他玩家的方向提示
-    if(myId && state.players[myId] && state.players[myId].state === 'PLAYING') {
-        let mySnake = state.players[myId].snake[0];
-        let myScreenX = mySnake.x * GRID_SIZE + GRID_SIZE / 2 + camX;
-        let myScreenY = mySnake.y * GRID_SIZE + GRID_SIZE / 2 + camY;
+    if(followedId && state.players[followedId] && state.players[followedId].state === 'PLAYING') {
+        let followedSnake = state.players[followedId].snake[0];
+        let myScreenX = followedSnake.x * GRID_SIZE + GRID_SIZE / 2 + camX;
+        let myScreenY = followedSnake.y * GRID_SIZE + GRID_SIZE / 2 + camY;
 
         for (let id in state.players) {
-            if (id === myId) continue;
+            if (id === followedId) continue;
             let other = state.players[id];
             if (other.state !== 'PLAYING') continue;
 

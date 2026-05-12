@@ -81,6 +81,12 @@
                     <h2>觀戰中</h2>
                     <p>本次得分: <span id="final-score">0</span></p>
                     <p class="death-copy">你可以看其他玩家廝殺，也可以直接重新加入。</p>
+                    <div class="spectator-controls">
+                        <label for="spectate-target">觀戰視角</label>
+                        <select id="spectate-target">
+                            <option value="">全圖視角</option>
+                        </select>
+                    </div>
                     <button id="btn-restart">重新加入</button>
                 </div>
             </div>
@@ -115,13 +121,13 @@
 
         <!-- 手機虛擬方向鍵 -->
         <div id="mobile-controls">
-            <button class="dpad-btn" id="dpad-up">▲</button>
+            <button class="dpad-btn" id="dpad-up" data-dir="up">▲</button>
             <div class="dpad-row">
-                <button class="dpad-btn" id="dpad-left">◀</button>
+                <button class="dpad-btn" id="dpad-left" data-dir="left">◀</button>
                 <button class="dpad-btn" id="dpad-dash" style="background: rgba(255,0,0,0.2); border-color: red; color: red;">💨</button>
-                <button class="dpad-btn" id="dpad-right">▶</button>
+                <button class="dpad-btn" id="dpad-right" data-dir="right">▶</button>
             </div>
-            <button class="dpad-btn" id="dpad-down">▼</button>
+            <button class="dpad-btn" id="dpad-down" data-dir="down">▼</button>
         </div>
     </div>
 
