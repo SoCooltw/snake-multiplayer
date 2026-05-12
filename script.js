@@ -2,14 +2,6 @@ const canvas = document.getElementById('game-canvas');
 const ctx = canvas.getContext('2d');
 const GRID_SIZE = 20;
 
-function escapeHtml(str) {
-    return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-}
-
 // UI 元素
 const screens = {
     start: document.getElementById('start-screen'),
@@ -249,9 +241,21 @@ socket.on('chatMessage', (data) => {
     const t = new Date(data.time);
     const hh = String(t.getHours()).padStart(2, '0');
     const mm = String(t.getMinutes()).padStart(2, '0');
-    div.innerHTML = `<span style="color:#666;font-size:0.5rem">${hh}:${mm}</span> `
-        + `<b style="color:${escapeHtml(data.color)}">${escapeHtml(data.name)}</b>`
-        + `<span style="color:#ddd">: ${escapeHtml(data.msg)}</span>`;
+
+    const time = document.createElement('span');
+    time.className = 'chat-time';
+    time.textContent = `${hh}:${mm} `;
+
+    const name = document.createElement('b');
+    name.className = 'chat-name';
+    name.style.color = data.color || '#aaaaaa';
+    name.textContent = data.name || '觀戰者';
+
+    const message = document.createElement('span');
+    message.className = 'chat-text';
+    message.textContent = `: ${data.msg || ''}`;
+
+    div.append(time, name, message);
     chatMessages.appendChild(div);
     chatMessages.scrollTop = chatMessages.scrollHeight;
     // 保留最新 60 則

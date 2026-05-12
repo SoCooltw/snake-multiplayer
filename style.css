@@ -296,6 +296,15 @@ input[type="checkbox"] {
     font-family: sans-serif;
 }
 
+.chat-time {
+    color: #777;
+    font-size: 0.5rem;
+}
+
+.chat-text {
+    color: #ddd;
+}
+
 .chat-input-row {
     display: flex;
 }

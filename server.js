@@ -6,6 +6,20 @@ const io = require('socket.io')(http);
 const session = require('express-session');
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
+const {
+    GRID_SIZE,
+    NUM_APPLES,
+    MAX_PLAYERS,
+    APPLE_LIFETIME,
+    SPECIAL_LIFETIME,
+    MINE_LIFETIME,
+    BLACK_HOLE_LIFETIME,
+    DIRECTION_COOLDOWN_MS,
+    CHAT_COOLDOWN_MS,
+    MAX_CHAT_LENGTH,
+    MAX_PLAYER_NAME_LENGTH
+} = require('./gameConfig');
+const { ITEM_TYPES } = require('./itemTypes');
 
 // 設定 Session (在 Render 代理後方需要 trust proxy)
 app.set('trust proxy', 1);
@@ -73,15 +87,10 @@ app.use(express.static(__dirname, {
 }));
 
 let players = {};
+let spectators = {};
 let apples = [];
 const chatCooldowns = {};   // socket.id -> 上次發話時間
 const dirCooldowns = {};    // socket.id -> 上次方向時間
-const NUM_APPLES = 15;
-const GRID_SIZE = 100;
-const MAX_PLAYERS = 10;
-
-const APPLE_LIFETIME = 20000;  // 紅蘋果 20 秒消失
-const SPECIAL_LIFETIME = 12000; // 特殊果實 12 秒消失
 
 function spawnApple() {
     let newApple = {};
@@ -108,30 +117,21 @@ function spawnApple() {
 
 for(let i=0; i<NUM_APPLES; i++) apples.push(spawnApple());
 
-let specialApple = null;
-setInterval(() => {
-    if (!specialApple && Object.keys(players).length > 0) specialApple = { ...spawnApple() };
-}, 15000);
+const specialItems = {
+    specialApple: null,
+    speedApple: null,
+    magnetApple: null,
+    poisonApple: null,
+    bombApple: null
+};
 
-let speedApple = null;
-setInterval(() => {
-    if (!speedApple && Object.keys(players).length > 0 && Math.random() < 0.5) speedApple = { ...spawnApple() };
-}, 20000);
-
-let magnetApple = null;
-setInterval(() => {
-    if (!magnetApple && Object.keys(players).length > 0 && Math.random() < 0.5) magnetApple = { ...spawnApple() };
-}, 18000);
-
-let poisonApple = null;
-setInterval(() => {
-    if (!poisonApple && Object.keys(players).length > 0 && Math.random() < 0.5) poisonApple = { ...spawnApple() };
-}, 25000);
-
-let bombApple = null;
-setInterval(() => {
-    if (!bombApple && Object.keys(players).length > 0 && Math.random() < 0.5) bombApple = { ...spawnApple() };
-}, 30000);
+for (let item of Object.values(ITEM_TYPES)) {
+    setInterval(() => {
+        if (!specialItems[item.stateKey] && Object.keys(players).length > 0 && Math.random() < item.chance) {
+            specialItems[item.stateKey] = { ...spawnApple() };
+        }
+    }, item.spawnMs);
+}
 
 let mines = [];
 let blackHoles = [];
@@ -140,6 +140,43 @@ setInterval(() => {
         blackHoles.push({ ...spawnApple(), r: Math.random() * 2 + 2, t: Date.now() });
     }
 }, 40000);
+
+function sanitizePlayerName(userData) {
+    return (userData && userData.name ? String(userData.name).trim().slice(0, MAX_PLAYER_NAME_LENGTH) : '') || 'Guest';
+}
+
+function rememberIdentity(socketId, player) {
+    spectators[socketId] = {
+        name: player.name,
+        color: player.color
+    };
+}
+
+function getSocketIdentity(socketId) {
+    return players[socketId] || spectators[socketId] || { name: '觀戰者', color: '#aaaaaa' };
+}
+
+function isValidDirection(dir) {
+    if (!dir) return false;
+    const validValues = [-1, 0, 1];
+    if (!validValues.includes(dir.dx) || !validValues.includes(dir.dy)) return false;
+    if (dir.dx !== 0 && dir.dy !== 0) return false;
+    return !(dir.dx === 0 && dir.dy === 0);
+}
+
+function getGameStatePayload() {
+    return {
+        players,
+        apples,
+        specialApple: specialItems.specialApple,
+        speedApple: specialItems.speedApple,
+        poisonApple: specialItems.poisonApple,
+        magnetApple: specialItems.magnetApple,
+        bombApple: specialItems.bombApple,
+        mines,
+        blackHoles
+    };
+}
 
 
 io.on('connection', (socket) => {
@@ -151,8 +188,7 @@ io.on('connection', (socket) => {
             return;
         }
 
-        // 名稱清理：最長 20 字，去除前後空白，預設 Guest
-        let playerName = (userData && userData.name ? String(userData.name).trim().slice(0, 20) : '') || 'Guest';
+        const playerName = sanitizePlayerName(userData);
 
         players[socket.id] = {
             id: socket.id,
@@ -163,6 +199,7 @@ io.on('connection', (socket) => {
             score: 0,
             state: 'PLAYING'
         };
+        rememberIdentity(socket.id, players[socket.id]);
         players[socket.id].snake.push({x: players[socket.id].snake[0].x, y: players[socket.id].snake[0].y + 1});
         players[socket.id].snake.push({x: players[socket.id].snake[0].x, y: players[socket.id].snake[0].y + 2});
 
@@ -175,13 +212,9 @@ io.on('connection', (socket) => {
         if(!p || p.state !== 'PLAYING') return;
         // Rate limit：每 50ms 最多一次
         const now = Date.now();
-        if (dirCooldowns[socket.id] && now - dirCooldowns[socket.id] < 50) return;
+        if (dirCooldowns[socket.id] && now - dirCooldowns[socket.id] < DIRECTION_COOLDOWN_MS) return;
         dirCooldowns[socket.id] = now;
-        // 驗證輸入：dx/dy 只允許 -1, 0, 1，且不能同時為非零（斜向移動）
-        const validValues = [-1, 0, 1];
-        if (!validValues.includes(dir.dx) || !validValues.includes(dir.dy)) return;
-        if (dir.dx !== 0 && dir.dy !== 0) return;
-        if (dir.dx === 0 && dir.dy === 0) return;
+        if (!isValidDirection(dir)) return;
         p.nextDir = dir;
     });
 
@@ -192,19 +225,19 @@ io.on('connection', (socket) => {
 
     socket.on('chat', (msg) => {
         if (!msg || typeof msg !== 'string') return;
-        msg = msg.trim().slice(0, 60);
+        msg = msg.trim().slice(0, MAX_CHAT_LENGTH);
         if (!msg) return;
         // Rate limit：每 1.5 秒最多一則
         const now = Date.now();
-        if (chatCooldowns[socket.id] && now - chatCooldowns[socket.id] < 1500) return;
+        if (chatCooldowns[socket.id] && now - chatCooldowns[socket.id] < CHAT_COOLDOWN_MS) return;
         chatCooldowns[socket.id] = now;
-        const name = players[socket.id] ? players[socket.id].name : '觀戰者';
-        const color = players[socket.id] ? players[socket.id].color : '#aaaaaa';
+        const { name, color } = getSocketIdentity(socket.id);
         io.emit('chatMessage', { name, msg, color, time: now });
     });
 
     socket.on('disconnect', () => {
         delete players[socket.id];
+        delete spectators[socket.id];
         delete chatCooldowns[socket.id];
         delete dirCooldowns[socket.id];
         io.emit('updateScoreboard', getScoreboard());
@@ -243,14 +276,14 @@ setInterval(() => {
             apples.push(spawnApple());
         }
     }
-    if (specialApple && now - specialApple.t > SPECIAL_LIFETIME) specialApple = null;
-    if (speedApple && now - speedApple.t > SPECIAL_LIFETIME) speedApple = null;
-    if (poisonApple && now - poisonApple.t > SPECIAL_LIFETIME) poisonApple = null;
-    if (magnetApple && now - magnetApple.t > SPECIAL_LIFETIME) magnetApple = null;
-    if (bombApple && now - bombApple.t > SPECIAL_LIFETIME) bombApple = null;
+    for (let key in specialItems) {
+        if (specialItems[key] && now - specialItems[key].t > SPECIAL_LIFETIME) {
+            specialItems[key] = null;
+        }
+    }
 
-    mines = mines.filter(m => now - m.t < 15000); // 地雷 15 秒後消失
-    blackHoles = blackHoles.filter(b => now - b.t < 20000); // 黑洞 20 秒後消失
+    mines = mines.filter(m => now - m.t < MINE_LIFETIME);
+    blackHoles = blackHoles.filter(b => now - b.t < BLACK_HOLE_LIFETIME);
 
     // 移動蛇與吃蘋果判定
     for (let id in players) {
@@ -328,23 +361,23 @@ setInterval(() => {
             apples.splice(ateIndex, 1);
             apples.push(spawnApple());
         } else {
-            if (specialApple && head.x === specialApple.x && head.y === specialApple.y) {
-                p.score += 50; p.superUntil = now + 10000; specialApple = null; scoreboardChanged = true;
-                io.emit('killFeed', { msg: `⭐ ${p.name} 獲得無敵狀態！`, color: '#ffd700' });
-            } else if (speedApple && head.x === speedApple.x && head.y === speedApple.y) {
-                p.score += 30; p.speedUntil = now + 8000; speedApple = null; scoreboardChanged = true;
-                io.emit('killFeed', { msg: `💨 ${p.name} 獲得加速狀態！`, color: '#00ff88' });
-            } else if (poisonApple && head.x === poisonApple.x && head.y === poisonApple.y) {
-                p.reversedUntil = now + 5000; poisonApple = null;
-                io.emit('killFeed', { msg: `☠️ ${p.name} 中毒了 (方向反轉)！`, color: '#800080' });
-            } else if (magnetApple && head.x === magnetApple.x && head.y === magnetApple.y) {
-                p.score += 20; p.magnetUntil = now + 10000; magnetApple = null; scoreboardChanged = true;
-                io.emit('killFeed', { msg: `🧲 ${p.name} 獲得磁鐵能力！`, color: '#0088ff' });
-            } else if (bombApple && head.x === bombApple.x && head.y === bombApple.y) {
+            if (specialItems.specialApple && head.x === specialItems.specialApple.x && head.y === specialItems.specialApple.y) {
+                p.score += 50; p.superUntil = now + 10000; specialItems.specialApple = null; scoreboardChanged = true;
+                io.emit('killFeed', { msg: ITEM_TYPES.specialApple.pickupMessage(p.name), color: ITEM_TYPES.specialApple.color });
+            } else if (specialItems.speedApple && head.x === specialItems.speedApple.x && head.y === specialItems.speedApple.y) {
+                p.score += 30; p.speedUntil = now + 8000; specialItems.speedApple = null; scoreboardChanged = true;
+                io.emit('killFeed', { msg: ITEM_TYPES.speedApple.pickupMessage(p.name), color: ITEM_TYPES.speedApple.color });
+            } else if (specialItems.poisonApple && head.x === specialItems.poisonApple.x && head.y === specialItems.poisonApple.y) {
+                p.reversedUntil = now + 5000; specialItems.poisonApple = null;
+                io.emit('killFeed', { msg: ITEM_TYPES.poisonApple.pickupMessage(p.name), color: ITEM_TYPES.poisonApple.color });
+            } else if (specialItems.magnetApple && head.x === specialItems.magnetApple.x && head.y === specialItems.magnetApple.y) {
+                p.score += 20; p.magnetUntil = now + 10000; specialItems.magnetApple = null; scoreboardChanged = true;
+                io.emit('killFeed', { msg: ITEM_TYPES.magnetApple.pickupMessage(p.name), color: ITEM_TYPES.magnetApple.color });
+            } else if (specialItems.bombApple && head.x === specialItems.bombApple.x && head.y === specialItems.bombApple.y) {
                 let tail = p.snake[p.snake.length - 1];
                 mines.push({ x: tail.x, y: tail.y, t: Date.now(), owner: p.name });
-                bombApple = null;
-                io.emit('killFeed', { msg: `💣 ${p.name} 排出了地雷！`, color: '#555555' });
+                specialItems.bombApple = null;
+                io.emit('killFeed', { msg: ITEM_TYPES.bombApple.pickupMessage(p.name), color: ITEM_TYPES.bombApple.color });
             } else {
                 p.snake.pop(); // 沒吃到就移除尾巴
             }
@@ -475,7 +508,7 @@ setInterval(() => {
         io.emit('updateScoreboard', getScoreboard());
     }
 
-    io.emit('gameState', { players, apples, specialApple, speedApple, poisonApple, magnetApple, bombApple, mines, blackHoles });
+    io.emit('gameState', getGameStatePayload());
 
 }, 60);
 
