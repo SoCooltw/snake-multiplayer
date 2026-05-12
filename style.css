@@ -46,7 +46,7 @@ body {
     justify-content: flex-start;
     align-items: center;
     min-height: 100vh;
-    overflow: auto;
+    overflow: hidden;
     background: radial-gradient(circle at center, #1b2735 0%, #090a0f 100%);
     transition: background-color 0.5s, color 0.5s;
 }
@@ -58,8 +58,9 @@ body {
     box-shadow: none;
     text-align: center;
     position: relative;
-    width: min(1088px, 100vw);
-    min-height: min(720px, 100vh);
+    width: 100vw;
+    height: 100vh;
+    min-height: 100vh;
     transition: all 0.5s;
     display: grid;
     grid-template-columns: 260px minmax(0, 1fr);
@@ -254,8 +255,9 @@ h1 {
 
 .game-board-container {
     position: relative;
-    width: 100%;
-    max-width: 600px;
+    width: min(100%, 100vh);
+    max-width: none;
+    max-height: 100vh;
     aspect-ratio: 1/1;
     margin: auto;
     align-self: center;
@@ -617,6 +619,7 @@ input[type="checkbox"] {
         align-items: flex-start;
         justify-content: center;
         padding: 5px;
+        overflow: auto;
     }
     .game-container {
         display: flex;
@@ -624,6 +627,7 @@ input[type="checkbox"] {
         padding: 0.5rem;
         gap: 0.5rem;
         width: 100%;
+        height: auto;
         min-height: auto;
         max-width: 100%;
         border: 2px solid var(--primary-color);

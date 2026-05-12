@@ -1,6 +1,55 @@
 const canvas = document.getElementById('game-canvas');
 const ctx = canvas.getContext('2d');
 const GRID_SIZE = 20;
+const WORLD_GRID_SIZE = 100;
+const boardContainer = document.getElementById('board-container');
+
+let spectatorCamX = 0;
+let spectatorCamY = 0;
+let hasSpectatorCamera = false;
+
+function worldPixelSize() {
+    return WORLD_GRID_SIZE * GRID_SIZE;
+}
+
+function clampCamera(x, y) {
+    const worldSize = worldPixelSize();
+    const minX = Math.min(0, canvas.width - worldSize);
+    const minY = Math.min(0, canvas.height - worldSize);
+    return {
+        x: Math.min(0, Math.max(minX, x)),
+        y: Math.min(0, Math.max(minY, y))
+    };
+}
+
+function centerSpectatorCamera() {
+    const worldSize = worldPixelSize();
+    const centered = clampCamera(
+        canvas.width / 2 - worldSize / 2,
+        canvas.height / 2 - worldSize / 2
+    );
+    spectatorCamX = centered.x;
+    spectatorCamY = centered.y;
+    hasSpectatorCamera = true;
+}
+
+function resizeCanvasToBoard() {
+    if (!boardContainer) return;
+    const rect = boardContainer.getBoundingClientRect();
+    const size = Math.max(320, Math.floor(Math.min(rect.width, rect.height)));
+    if (!Number.isFinite(size) || size === canvas.width) return;
+    canvas.width = size;
+    canvas.height = size;
+    if (!hasSpectatorCamera || (isSpectating && !spectateTargetId)) {
+        centerSpectatorCamera();
+    }
+}
+
+requestAnimationFrame(resizeCanvasToBoard);
+window.addEventListener('resize', resizeCanvasToBoard);
+if (window.ResizeObserver && boardContainer) {
+    new ResizeObserver(resizeCanvasToBoard).observe(boardContainer);
+}
 
 // UI 元素
 const screens = {
@@ -84,17 +133,20 @@ function buildCurrentUser() {
 btns.start.addEventListener('click', () => {
     isSpectating = false;
     spectateTargetId = '';
+    hasSpectatorCamera = false;
     socket.emit('joinGame', buildCurrentUser());
 });
 btns.restart.addEventListener('click', () => {
     isSpectating = false;
     spectateTargetId = '';
+    hasSpectatorCamera = false;
     socket.emit('joinGame', currentUser);
 });
 
 if (spectateTargetEl) {
     spectateTargetEl.addEventListener('change', () => {
         spectateTargetId = spectateTargetEl.value;
+        if (!spectateTargetId) centerSpectatorCamera();
     });
 }
 
@@ -118,6 +170,8 @@ socket.on('gameOver', (score) => {
     finalScoreEl.textContent = score;
     screens.over.classList.remove('hidden');
     isSpectating = true;
+    spectateTargetId = '';
+    centerSpectatorCamera();
     // 死亡後自動 focus 聊天輸入框
     const chatInput = document.getElementById('chat-input');
     const isTouchDevice = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
@@ -257,6 +311,40 @@ function directionFromDelta(dx, dy, minDistance = 12) {
 
 // 手機滑動控制：拖曳中即可換方向，不必等放開
 let touchStartX = 0, touchStartY = 0;
+function isFreeSpectatorCamera() {
+    return isSpectating && !spectateTargetId;
+}
+
+function panSpectatorCamera(dx, dy) {
+    const clamped = clampCamera(spectatorCamX + dx, spectatorCamY + dy);
+    spectatorCamX = clamped.x;
+    spectatorCamY = clamped.y;
+    hasSpectatorCamera = true;
+}
+
+let isMousePanning = false;
+let lastPanX = 0;
+let lastPanY = 0;
+
+canvas.addEventListener('mousedown', (e) => {
+    if (!isFreeSpectatorCamera()) return;
+    e.preventDefault();
+    isMousePanning = true;
+    lastPanX = e.clientX;
+    lastPanY = e.clientY;
+});
+
+window.addEventListener('mousemove', (e) => {
+    if (!isMousePanning) return;
+    panSpectatorCamera(e.clientX - lastPanX, e.clientY - lastPanY);
+    lastPanX = e.clientX;
+    lastPanY = e.clientY;
+});
+
+window.addEventListener('mouseup', () => {
+    isMousePanning = false;
+});
+
 let lastSwipeDir = null;
 canvas.addEventListener('touchstart', (e) => {
     e.preventDefault();
@@ -267,6 +355,14 @@ canvas.addEventListener('touchstart', (e) => {
 
 canvas.addEventListener('touchmove', (e) => {
     e.preventDefault();
+    if (isFreeSpectatorCamera()) {
+        const dx = e.touches[0].clientX - touchStartX;
+        const dy = e.touches[0].clientY - touchStartY;
+        panSpectatorCamera(dx, dy);
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+        return;
+    }
     const dx = e.touches[0].clientX - touchStartX;
     const dy = e.touches[0].clientY - touchStartY;
     const dir = directionFromDelta(dx, dy);
@@ -458,7 +554,7 @@ function updateSpectatorTargets(players) {
     spectateTargetEl.innerHTML = '';
     const overview = document.createElement('option');
     overview.value = '';
-    overview.textContent = '全圖視角';
+    overview.textContent = '全圖自由鏡頭';
     spectateTargetEl.appendChild(overview);
 
     livingPlayers.forEach(p => {
@@ -473,17 +569,16 @@ function updateSpectatorTargets(players) {
         spectateTargetId = existingValue;
     } else if (spectateTargetId && players[spectateTargetId]) {
         spectateTargetEl.value = spectateTargetId;
-    } else if (livingPlayers.length > 0) {
-        spectateTargetId = livingPlayers[0].id;
-        spectateTargetEl.value = spectateTargetId;
     } else {
         spectateTargetId = '';
         spectateTargetEl.value = '';
+        if (!hasSpectatorCamera) centerSpectatorCamera();
     }
 }
 
 // 繪製遊戲畫面
 socket.on('gameState', (state) => {
+    resizeCanvasToBoard();
     const SERVER_GRID_SIZE = 100; // 對應後端的新尺寸
     updateSpectatorTargets(state.players);
     
@@ -495,7 +590,11 @@ socket.on('gameState', (state) => {
         ? myId
         : spectateTargetId;
 
-    if (followedId && state.players[followedId] && state.players[followedId].state === 'PLAYING') {
+    if (isFreeSpectatorCamera()) {
+        if (!hasSpectatorCamera) centerSpectatorCamera();
+        camX = spectatorCamX;
+        camY = spectatorCamY;
+    } else if (followedId && state.players[followedId] && state.players[followedId].state === 'PLAYING') {
         mySnake = state.players[followedId].snake[0];
         let targetX = mySnake.x * GRID_SIZE + GRID_SIZE / 2;
         let targetY = mySnake.y * GRID_SIZE + GRID_SIZE / 2;
@@ -507,8 +606,13 @@ socket.on('gameState', (state) => {
     }
 
     // 限制相機不要超出邊界
-    camX = Math.min(0, Math.max(canvas.width - SERVER_GRID_SIZE * GRID_SIZE, camX));
-    camY = Math.min(0, Math.max(canvas.height - SERVER_GRID_SIZE * GRID_SIZE, camY));
+    const clampedCamera = clampCamera(camX, camY);
+    camX = clampedCamera.x;
+    camY = clampedCamera.y;
+    if (isFreeSpectatorCamera()) {
+        spectatorCamX = camX;
+        spectatorCamY = camY;
+    }
 
     // 清空並畫上宇宙背景 (深藍紫色底)
     ctx.fillStyle = '#0b0c10'; 
