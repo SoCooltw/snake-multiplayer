@@ -18,22 +18,25 @@
                 <button id="btn-settings">⚙️ 設定</button>
                 <button id="btn-leaderboard">🏆 排行榜</button>
             </div>
-            <div class="score-board">
-                <p style="margin-bottom: 10px; color: var(--primary-color);">即時戰況 <button id="btn-toggle-ui" style="font-size: 0.5rem; padding: 2px 5px; float: right;">👁️ 隱藏</button></p>
+            <section class="side-panel score-board">
+                <div class="panel-title-row">
+                    <p class="panel-title">即時戰況</p>
+                    <button id="btn-toggle-ui" class="icon-action" title="顯示或隱藏規則">👁️</button>
+                </div>
                 <div id="live-scoreboard" style="display: flex; flex-direction: column; gap: 5px; text-align: left; padding-left: 10px;">
                     <!-- JS 生成分數 -->
                 </div>
-            </div>
+            </section>
             <!-- 聊天面板 -->
-            <div class="chat-panel">
-                <p class="chat-title">💬 聊天室</p>
+            <section class="side-panel chat-panel">
+                <p class="panel-title">💬 聊天室</p>
                 <div id="chat-messages"></div>
                 <div class="chat-input-row">
                     <input type="text" id="chat-input" placeholder="輸入訊息… (Enter 發送)" maxlength="60" autocomplete="off">
                 </div>
-            </div>
+            </section>
 
-            <div class="controls-hint" id="controls-hint" style="margin-top: 2rem; text-align: left; line-height: 2;">
+            <section class="side-panel controls-hint" id="controls-hint">
                 <p>💡 遊戲機制:<br>
                 💨 <b>空白鍵 (按住)</b>：消耗長度衝刺<br>
                 🐍 <b>頭對撞</b>：大蛇吞小蛇<br>
@@ -43,7 +46,7 @@
                 💣 <b>黑蘋果</b>：吃下後排泄地雷<br>
                 🌀 <b>黑洞</b>：小心被吸入死亡<br>
                 👑 <b>皇冠</b>：擊殺第一名獲大量分數</p>
-            </div>
+            </section>
         </div>
 
         <div class="game-board-container" id="board-container">
@@ -51,11 +54,19 @@
             
             <!-- Screens -->
             <div id="start-screen" class="overlay">
-                <h2>準備開始</h2>
-                <p>使用方向鍵 或 WASD 控制</p>
-                <div class="name-entry">
-                    <input type="text" id="player-name" placeholder="輸入玩家名稱" maxlength="20" autocomplete="off">
-                    <button id="btn-start" style="margin-bottom: 10px;">開始遊戲</button>
+                <div class="start-panel">
+                    <p class="screen-kicker">MULTIPLAYER ARENA</p>
+                    <h2>準備開始</h2>
+                    <p class="start-copy">輸入名稱就能加入戰局。支援文字、數字與特殊符號。</p>
+                    <div class="name-entry">
+                        <input type="text" id="player-name" placeholder="輸入玩家名稱" maxlength="20" autocomplete="off">
+                        <button id="btn-start">開始遊戲</button>
+                    </div>
+                    <div class="start-stats">
+                        <span id="online-count">在線 0/10</span>
+                        <span>WASD / 方向鍵</span>
+                        <span>空白鍵衝刺</span>
+                    </div>
                 </div>
                 <p id="user-info" style="margin-top: 10px; font-size: 0.8rem; color: #39ff14;"></p>
                 <button id="btn-resume-save" class="hidden" style="border-color: var(--gold-apple); color: var(--gold-apple);">繼續上次進度</button>
@@ -65,9 +76,13 @@
             </div>
             
             <div id="game-over-screen" class="overlay hidden">
-                <h2>遊戲結束!</h2>
-                <p>本次得分: <span id="final-score">0</span></p>
-                <button id="btn-restart">再玩一次</button>
+                <div class="death-panel">
+                    <p class="screen-kicker">SPECTATING</p>
+                    <h2>觀戰中</h2>
+                    <p>本次得分: <span id="final-score">0</span></p>
+                    <p class="death-copy">你可以看其他玩家廝殺，也可以直接重新加入。</p>
+                    <button id="btn-restart">重新加入</button>
+                </div>
             </div>
 
             <div id="pause-screen" class="overlay hidden">

@@ -19,6 +19,7 @@ const btns = {
 const userInfoEl = document.getElementById('user-info');
 const finalScoreEl = document.getElementById('final-score');
 const playerNameInput = document.getElementById('player-name');
+const onlineCountEl = document.getElementById('online-count');
 
 // 隱藏目前多人連線用不到的功能
 ['btn-resume-save','btn-show-cheat','cheat-text','btn-leaderboard'].forEach(id => {
@@ -95,6 +96,9 @@ if (playerNameInput) {
 
 socket.on('joined', () => { hideAllScreens(); });
 socket.on('serverMessage', (msg) => { alert(msg); });
+socket.on('roomStatus', (status) => {
+    if (onlineCountEl) onlineCountEl.textContent = `在線 ${status.players}/${status.maxPlayers}`;
+});
 socket.on('gameOver', (score) => {
     // 不 hideAllScreens：讓遊戲畫面繼續在半透明 overlay 後面跑（觀戰模式）
     Object.values(screens).forEach(s => { if (s !== screens.over) s.classList.add('hidden'); });
@@ -118,7 +122,8 @@ socket.on('updateScoreboard', (scores) => {
             p.style.color = s.color;
             p.style.textShadow = `0 0 5px ${s.color}`;
             p.style.padding = '3px 0';
-            p.style.fontSize = '0.75rem';
+            p.style.fontSize = '0.82rem';
+            p.style.fontFamily = 'sans-serif';
             if(s.id === myId) { p.style.fontWeight = 'bold'; p.style.borderLeft = `3px solid ${s.color}`; p.style.paddingLeft = '8px'; }
             liveScoreboardEl.appendChild(p);
         });
@@ -131,6 +136,31 @@ socket.on('killFeed', (data) => {
     killFeedMessages.push({ ...data, time: Date.now() });
     if(killFeedMessages.length > 5) killFeedMessages.shift();
 });
+
+let effectToasts = [];
+let previousEffectState = {};
+
+function pushEffectToast(icon, label, color) {
+    effectToasts.push({ icon, label, color, time: Date.now() });
+    if (effectToasts.length > 4) effectToasts.shift();
+}
+
+function updateEffectToasts(player, now) {
+    const effects = [
+        { key: 'superUntil', icon: '⭐', label: '無敵', color: '#ffd700' },
+        { key: 'speedUntil', icon: '💨', label: '加速', color: '#00ff88' },
+        { key: 'magnetUntil', icon: '🧲', label: '磁鐵', color: '#0088ff' },
+        { key: 'reversedUntil', icon: '☠️', label: '中毒', color: '#cc44cc' }
+    ];
+
+    effects.forEach(effect => {
+        const isActive = player[effect.key] && player[effect.key] > now;
+        if (isActive && !previousEffectState[effect.key]) {
+            pushEffectToast(effect.icon, effect.label, effect.color);
+        }
+        previousEffectState[effect.key] = isActive;
+    });
+}
 
 // UI 顯示切換
 const btnToggleUi = document.getElementById('btn-toggle-ui');
@@ -484,6 +514,12 @@ socket.on('gameState', (state) => {
 
     // 畫擊殺通知 (Kill Feed)
     let now = Date.now();
+    if (myId && state.players[myId] && state.players[myId].state === 'PLAYING') {
+        updateEffectToasts(state.players[myId], now);
+    } else {
+        previousEffectState = {};
+    }
+
     killFeedMessages = killFeedMessages.filter(m => now - m.time < 4000);
     killFeedMessages.forEach((msg, i) => {
         let alpha = Math.max(0, 1 - (now - msg.time) / 4000);
@@ -494,6 +530,23 @@ socket.on('gameState', (state) => {
         ctx.fillText(msg.msg, canvas.width - 15, 30 + i * 22);
     });
     ctx.globalAlpha = 1;
+
+    // 道具浮動提示
+    effectToasts = effectToasts.filter(t => now - t.time < 1800);
+    effectToasts.forEach((toast, i) => {
+        const age = now - toast.time;
+        const alpha = age < 1300 ? 1 : Math.max(0, 1 - (age - 1300) / 500);
+        const y = canvas.height * 0.32 + i * 34 - Math.min(age / 18, 28);
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.font = 'bold 18px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = toast.color;
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = toast.color;
+        ctx.fillText(`${toast.icon} ${toast.label}`, canvas.width / 2, y);
+        ctx.restore();
+    });
 
     // 畫出其他玩家的方向提示
     if(myId && state.players[myId] && state.players[myId].state === 'PLAYING') {

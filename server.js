@@ -121,9 +121,20 @@ function getGameStatePayload() {
     };
 }
 
+function emitRoomStatus() {
+    io.emit('roomStatus', {
+        players: Object.keys(players).length,
+        maxPlayers: MAX_PLAYERS
+    });
+}
+
 
 io.on('connection', (socket) => {
     console.log('連線建立:', socket.id);
+    socket.emit('roomStatus', {
+        players: Object.keys(players).length,
+        maxPlayers: MAX_PLAYERS
+    });
 
     socket.on('joinGame', (userData) => {
         if (Object.keys(players).length >= MAX_PLAYERS) {
@@ -148,6 +159,7 @@ io.on('connection', (socket) => {
 
         socket.emit('joined');
         io.emit('updateScoreboard', getScoreboard());
+        emitRoomStatus();
     });
 
     socket.on('direction', (dir) => {
@@ -184,6 +196,7 @@ io.on('connection', (socket) => {
         delete chatCooldowns[socket.id];
         delete dirCooldowns[socket.id];
         io.emit('updateScoreboard', getScoreboard());
+        emitRoomStatus();
     });
 });
 
@@ -427,12 +440,15 @@ setInterval(() => {
         }
     }
 
+    let removedPlayers = false;
     for (let id in players) {
         if(players[id].state === 'DEAD') {
             delete players[id];
             scoreboardChanged = true;
+            removedPlayers = true;
         }
     }
+    if (removedPlayers) emitRoomStatus();
 
     // 標記 isSuper 給前端特效使用
     let highestScore = -1;
