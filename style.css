@@ -752,8 +752,8 @@ input[type="checkbox"] {
         left: var(--hud-edge);
         right: var(--hud-edge);
         width: auto;
-        padding: 0.55rem;
-        gap: 0.45rem;
+        padding: 0.5rem;
+        gap: 0.4rem;
     }
     .arena-status .screen-kicker {
         display: none;
@@ -761,13 +761,21 @@ input[type="checkbox"] {
     .arena-status h1 {
         display: block;
         font-size: 0.72rem;
+        line-height: 1.2;
     }
     .arena-status-grid {
         grid-template-columns: 1fr 1fr;
         gap: 0.35rem;
     }
     .arena-status-grid div {
-        padding: 0.38rem;
+        padding: 0.35rem 0.45rem;
+    }
+    .arena-status-grid span {
+        font-size: 0.58rem;
+        margin-bottom: 0.12rem;
+    }
+    .arena-status-grid strong {
+        font-size: 0.78rem;
     }
     .controls-hint {
         display: none;
@@ -782,14 +790,7 @@ input[type="checkbox"] {
         padding: 0.45rem 0.3rem;
     }
     .score-board {
-        top: 132px;
-        left: var(--hud-edge);
-        right: var(--hud-edge);
-        width: auto;
-        min-height: 0;
-        max-height: 18vh;
-        padding: 0.5rem;
-        font-size: 0.7rem;
+        display: none;
     }
     .score-row {
         grid-template-columns: 24px minmax(0, 1fr);
@@ -804,10 +805,19 @@ input[type="checkbox"] {
         display: none;
     }
     .game-board-container {
-        margin-top: 236px;
-        width: min(100vw, calc(100vh - 390px));
-        max-height: calc(100vh - 390px);
+        margin-top: 138px;
+        width: min(100vw, calc(100vh - 280px));
+        max-height: calc(100vh - 280px);
         border-width: 2px;
+    }
+    .start-panel,
+    .death-panel {
+        width: min(88%, 330px);
+        gap: 0.65rem;
+    }
+    .spectator-controls select {
+        font-size: 0.82rem;
+        padding: 0.48rem 0.55rem;
     }
     #mobile-controls {
         display: flex;
