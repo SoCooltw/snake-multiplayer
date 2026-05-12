@@ -183,6 +183,13 @@ const liveScoreboardEl = document.getElementById('live-scoreboard');
 socket.on('updateScoreboard', (scores) => {
     if(liveScoreboardEl) {
         liveScoreboardEl.innerHTML = '';
+        if (!scores.length) {
+            const empty = document.createElement('div');
+            empty.className = 'score-empty';
+            empty.textContent = '等待玩家加入戰局';
+            liveScoreboardEl.appendChild(empty);
+            return;
+        }
         const topScore = Math.max(1, ...scores.map(s => s.score));
         scores.forEach((s, idx) => {
             const row = document.createElement('div');

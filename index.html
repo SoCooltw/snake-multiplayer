@@ -9,45 +9,41 @@
     <meta http-equiv="Expires" content="0">
     <meta name="theme-color" content="#00e5ff">
     <link rel="manifest" href="/manifest.webmanifest">
-    <link rel="stylesheet" href="style.css?v=2">
+    <link rel="stylesheet" href="style.css?v=3">
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <div class="game-container" id="game-container">
         <div class="header">
-            <h1 id="game-title">貪吃蛇專題</h1>
+            <h1 id="game-title">貪吃蛇競技場</h1>
             <div class="top-buttons">
-                <button id="btn-settings">⚙️ 設定</button>
-                <button id="btn-leaderboard">🏆 排行榜</button>
+                <button id="btn-settings">設定</button>
+                <button id="btn-leaderboard">排行榜</button>
             </div>
             <section class="side-panel score-board">
                 <div class="panel-title-row">
                     <p class="panel-title">即時戰況</p>
-                    <button id="btn-toggle-ui" class="icon-action" title="顯示或隱藏規則">👁️</button>
+                    <button id="btn-toggle-ui" class="icon-action" title="顯示或隱藏道具說明">說明</button>
                 </div>
-                <div id="live-scoreboard" class="arena-scoreboard">
-                    <!-- JS 生成分數 -->
-                </div>
+                <div id="live-scoreboard" class="arena-scoreboard"></div>
             </section>
-            <!-- 聊天面板 -->
             <section class="side-panel chat-panel">
-                <p class="panel-title">💬 聊天室</p>
+                <p class="panel-title">聊天室</p>
                 <div id="chat-messages"></div>
                 <div class="chat-input-row">
-                    <input type="text" id="chat-input" placeholder="輸入訊息… (Enter 發送)" maxlength="60" autocomplete="off">
+                    <input type="text" id="chat-input" placeholder="輸入訊息... (Enter 發送)" maxlength="60" autocomplete="off">
                 </div>
             </section>
-
             <section class="side-panel controls-hint" id="controls-hint">
-                <p>💡 遊戲機制:<br>
-                💨 <b>空白鍵 (按住)</b>：消耗長度衝刺<br>
-                🐍 <b>頭對撞</b>：大蛇吞小蛇<br>
-                ⭐ <b>金蘋果</b>：10 秒無敵<br>
-                🧲 <b>藍蘋果</b>：磁鐵吸取果實<br>
-                ☠️ <b>紫蘋果</b>：反向操作中毒<br>
-                💣 <b>黑蘋果</b>：吃下後排泄地雷<br>
-                🌀 <b>黑洞</b>：小心被吸入死亡<br>
-                👑 <b>皇冠</b>：擊殺第一名獲大量分數</p>
+                <p>道具與操作<br>
+                空白鍵：消耗長度衝刺<br>
+                頭對撞：大吃小蛇<br>
+                金蘋果：10 秒無敵<br>
+                藍蘋果：磁鐵吸取果實<br>
+                紫蘋果：反向操作中毒<br>
+                黑蘋果：吃下後排泄地雷<br>
+                黑洞：小心被吸入死亡<br>
+                皇冠：擊殺第一名獲大量分數</p>
             </section>
         </div>
 
@@ -134,7 +130,7 @@
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
-    <script src="script.js?v=2"></script>
+    <script src="script.js?v=3"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {

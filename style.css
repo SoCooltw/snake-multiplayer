@@ -9,6 +9,8 @@
     --panel-border: rgba(0, 229, 255, 0.45);
     --font-main: 'Press Start 2P', cursive;
     --hud-edge: clamp(8px, 1.2vw, 18px);
+    --left-rail: clamp(280px, 23vw, 390px);
+    --right-rail: clamp(300px, 23vw, 420px);
 }
 
 [data-theme="cyberpunk"] {
@@ -63,9 +65,10 @@ body {
     height: 100vh;
     min-height: 100vh;
     transition: all 0.5s;
-    display: flex;
+    display: grid;
+    grid-template-columns: var(--left-rail) minmax(0, 1fr) var(--right-rail);
     align-items: center;
-    justify-content: center;
+    justify-items: center;
     overflow: hidden;
 }
 
@@ -92,8 +95,12 @@ h1 {
     position: absolute;
     top: var(--hud-edge);
     left: var(--hud-edge);
-    max-width: min(320px, 44vw);
-    font-size: clamp(0.72rem, 1vw, 1.05rem);
+    width: calc(var(--left-rail) - var(--hud-edge) * 2);
+    max-width: none;
+    padding: 0.85rem 1rem;
+    border: 1px solid rgba(0, 229, 255, 0.28);
+    background: linear-gradient(90deg, rgba(0, 229, 255, 0.1), rgba(0, 229, 255, 0.02));
+    font-size: clamp(0.8rem, 1vw, 1.05rem);
     color: var(--primary-color);
     margin-bottom: 0;
     text-shadow: 0 0 10px var(--primary-color);
@@ -104,7 +111,7 @@ h1 {
 
 .top-buttons {
     position: absolute;
-    top: calc(var(--hud-edge) + 2rem);
+    top: calc(var(--hud-edge) + 4.4rem);
     left: var(--hud-edge);
     display: flex;
     flex-direction: row;
@@ -114,9 +121,10 @@ h1 {
 }
 
 .top-buttons button {
-    padding: 5px 10px;
-    font-size: 0.6rem;
-    border: 1px dashed var(--primary-color);
+    padding: 0.7rem 0.85rem;
+    font-size: 0.62rem;
+    border: 1px solid rgba(0, 229, 255, 0.6);
+    background: rgba(0, 229, 255, 0.08);
 }
 
 .side-panel {
@@ -131,9 +139,10 @@ h1 {
 
 .score-board {
     position: absolute;
-    top: var(--hud-edge);
+    top: calc(var(--hud-edge) + 1.4rem);
     right: var(--hud-edge);
-    width: min(340px, 34vw);
+    width: calc(var(--right-rail) - var(--hud-edge) * 2);
+    min-height: 154px;
     max-height: min(62vh, 560px);
     display: flex;
     flex-direction: column;
@@ -154,6 +163,18 @@ h1 {
     gap: 0.55rem;
     overflow-y: auto;
     padding-right: 2px;
+}
+
+.score-empty {
+    min-height: 82px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px dashed rgba(0, 229, 255, 0.28);
+    color: #8fb7c1;
+    font-size: 0.82rem;
+    line-height: 1.5;
+    text-align: center;
 }
 
 .score-row {
@@ -269,9 +290,10 @@ h1 {
 }
 
 .icon-action {
-    width: 28px;
+    width: auto;
+    min-width: 48px;
     height: 28px;
-    padding: 0;
+    padding: 0 0.55rem;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -280,7 +302,8 @@ h1 {
 
 .game-board-container {
     position: relative;
-    width: min(100vw, 100vh);
+    grid-column: 2;
+    width: min(100%, calc(100vh - var(--hud-edge) * 2));
     max-width: none;
     max-height: 100vh;
     aspect-ratio: 1/1;
@@ -495,7 +518,7 @@ input[type="checkbox"] {
     position: absolute;
     left: var(--hud-edge);
     bottom: calc(var(--hud-edge) + min(260px, 30vh) + 14px);
-    width: min(360px, 34vw);
+    width: calc(var(--left-rail) - var(--hud-edge) * 2);
     max-height: min(32vh, calc(100vh - min(260px, 30vh) - 96px));
     overflow-y: auto;
     margin-top: 0;
@@ -516,7 +539,7 @@ input[type="checkbox"] {
     position: absolute;
     left: var(--hud-edge);
     bottom: var(--hud-edge);
-    width: min(390px, 36vw);
+    width: calc(var(--left-rail) - var(--hud-edge) * 2);
     height: min(260px, 30vh);
     display: flex;
     flex-direction: column;
