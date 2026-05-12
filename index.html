@@ -9,17 +9,15 @@
     <meta http-equiv="Expires" content="0">
     <meta name="theme-color" content="#00e5ff">
     <link rel="manifest" href="/manifest.webmanifest">
-    <link rel="stylesheet" href="style.css?v=6">
+    <link rel="stylesheet" href="style.css?v=7">
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <div id="rotate-screen" class="rotate-screen">
         <div class="rotate-panel">
-            <p class="screen-kicker">MOBILE PLAY</p>
-            <h2>Rotate to Landscape</h2>
-            <p>For the best control experience, turn your phone sideways before playing.</p>
-            <button id="btn-lock-landscape">Lock Landscape</button>
-            <p id="orientation-lock-status" class="orientation-lock-status"></p>
+            <p class="screen-kicker">DESKTOP REQUIRED</p>
+            <h2>Please Play On Computer</h2>
+            <p>This web version is designed for desktop play. Open this page on a computer, or use the Windows desktop version for the best experience.</p>
         </div>
     </div>
     <div class="game-container" id="game-container">
@@ -153,7 +151,7 @@
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
-    <script src="script.js?v=6"></script>
+    <script src="script.js?v=7"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
