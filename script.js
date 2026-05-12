@@ -114,18 +114,52 @@ const liveScoreboardEl = document.getElementById('live-scoreboard');
 socket.on('updateScoreboard', (scores) => {
     if(liveScoreboardEl) {
         liveScoreboardEl.innerHTML = '';
+        const topScore = Math.max(1, ...scores.map(s => s.score));
         scores.forEach((s, idx) => {
-            let p = document.createElement('div');
-            let medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '';
-            let superIcon = s.isSuper ? ' ⭐' : '';
-            p.textContent = `${medal} ${s.name}: ${s.score} (🐍${s.len})${superIcon}`;
-            p.style.color = s.color;
-            p.style.textShadow = `0 0 5px ${s.color}`;
-            p.style.padding = '3px 0';
-            p.style.fontSize = '0.82rem';
-            p.style.fontFamily = 'sans-serif';
-            if(s.id === myId) { p.style.fontWeight = 'bold'; p.style.borderLeft = `3px solid ${s.color}`; p.style.paddingLeft = '8px'; }
-            liveScoreboardEl.appendChild(p);
+            const row = document.createElement('div');
+            row.className = 'score-row';
+            if (s.id === myId) row.classList.add('score-row-self');
+            row.style.setProperty('--player-color', s.color);
+
+            const rank = document.createElement('div');
+            rank.className = 'score-rank';
+            rank.textContent = idx === 0 ? '1' : idx === 1 ? '2' : idx === 2 ? '3' : String(idx + 1);
+
+            const body = document.createElement('div');
+            body.className = 'score-body';
+
+            const top = document.createElement('div');
+            top.className = 'score-topline';
+
+            const name = document.createElement('span');
+            name.className = 'score-name';
+            name.textContent = s.name;
+
+            const points = document.createElement('span');
+            points.className = 'score-points';
+            points.textContent = `${s.score} pts`;
+
+            top.append(name, points);
+
+            const meta = document.createElement('div');
+            meta.className = 'score-meta';
+            meta.textContent = `長度 ${s.len}`;
+            if (s.isSuper) {
+                const status = document.createElement('span');
+                status.className = 'score-status';
+                status.textContent = '無敵';
+                meta.append(' · ', status);
+            }
+
+            const meter = document.createElement('div');
+            meter.className = 'score-meter';
+            const fill = document.createElement('span');
+            fill.style.width = `${Math.max(6, Math.round((s.score / topScore) * 100))}%`;
+            meter.appendChild(fill);
+
+            body.append(top, meta, meter);
+            row.append(rank, body);
+            liveScoreboardEl.appendChild(row);
         });
     }
 });
@@ -294,6 +328,75 @@ for (let i = 0; i < 300; i++) {
     });
 }
 
+function drawItemBase(x, y, color, glyph, label, shape = 'circle') {
+    const cx = x * GRID_SIZE + GRID_SIZE / 2;
+    const cy = y * GRID_SIZE + GRID_SIZE / 2;
+    const pulse = 0.85 + Math.sin(Date.now() / 180) * 0.15;
+
+    ctx.save();
+    ctx.shadowBlur = 18;
+    ctx.shadowColor = color;
+    ctx.fillStyle = color;
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+
+    if (shape === 'diamond') {
+        ctx.beginPath();
+        ctx.moveTo(cx, cy - 10 * pulse);
+        ctx.lineTo(cx + 10 * pulse, cy);
+        ctx.lineTo(cx, cy + 10 * pulse);
+        ctx.lineTo(cx - 10 * pulse, cy);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+    } else if (shape === 'square') {
+        ctx.fillRect(cx - 9 * pulse, cy - 9 * pulse, 18 * pulse, 18 * pulse);
+        ctx.strokeRect(cx - 9 * pulse, cy - 9 * pulse, 18 * pulse, 18 * pulse);
+    } else {
+        ctx.beginPath();
+        ctx.arc(cx, cy, 10 * pulse, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+    }
+
+    ctx.shadowBlur = 0;
+    ctx.font = 'bold 14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#05050f';
+    ctx.fillText(glyph, cx, cy + 0.5);
+
+    if (label) {
+        ctx.font = 'bold 8px sans-serif';
+        ctx.fillStyle = color;
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = color;
+        ctx.fillText(label, cx, cy + 18);
+    }
+    ctx.restore();
+}
+
+function drawNormalApple(apple, alpha) {
+    const cx = apple.x * GRID_SIZE + GRID_SIZE / 2;
+    const cy = apple.y * GRID_SIZE + GRID_SIZE / 2;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.shadowBlur = 14;
+    ctx.shadowColor = '#ff2a2a';
+    ctx.fillStyle = '#ff2a2a';
+    ctx.beginPath();
+    ctx.arc(cx, cy + 1, GRID_SIZE / 2 - 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#5d2b12';
+    ctx.fillRect(cx - 1, cy - 10, 3, 7);
+    ctx.fillStyle = '#39ff14';
+    ctx.beginPath();
+    ctx.ellipse(cx + 5, cy - 9, 5, 3, -0.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+}
+
 // 繪製遊戲畫面
 socket.on('gameState', (state) => {
     const SERVER_GRID_SIZE = 100; // 對應後端的新尺寸
@@ -359,85 +462,57 @@ socket.on('gameState', (state) => {
             if (age > 15000) {
                 alpha = 0.3 + Math.abs(Math.sin(now / 150)) * 0.7;
             }
-            ctx.globalAlpha = alpha;
-            ctx.shadowBlur = 15;
-            ctx.shadowColor = '#ff2a2a';
-            ctx.fillStyle = '#ff2a2a'; 
-            ctx.fillRect(apple.x * GRID_SIZE + 2, apple.y * GRID_SIZE + 2, GRID_SIZE - 4, GRID_SIZE - 4);
-            ctx.shadowBlur = 0;
+            drawNormalApple(apple, alpha);
         });
         ctx.globalAlpha = 1;
     }
 
     // 畫特殊果實 (無敵星星)
     if(state.specialApple) {
-        ctx.shadowBlur = 25;
-        ctx.shadowColor = '#ffd700';
-        ctx.fillStyle = '#ffd700';
-        ctx.fillRect(state.specialApple.x * GRID_SIZE, state.specialApple.y * GRID_SIZE, GRID_SIZE, GRID_SIZE);
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(state.specialApple.x * GRID_SIZE + 5, state.specialApple.y * GRID_SIZE + 5, GRID_SIZE - 10, GRID_SIZE - 10);
-        ctx.shadowBlur = 0;
+        drawItemBase(state.specialApple.x, state.specialApple.y, '#ffd700', '★', 'INV', 'diamond');
     }
 
     // 畫加速果實 (綠色閃電)
     if(state.speedApple) {
-        ctx.shadowBlur = 20;
-        ctx.shadowColor = '#00ff88';
-        ctx.fillStyle = '#00ff88';
-        ctx.beginPath();
-        ctx.moveTo(state.speedApple.x * GRID_SIZE + GRID_SIZE/2, state.speedApple.y * GRID_SIZE);
-        ctx.lineTo(state.speedApple.x * GRID_SIZE + GRID_SIZE, state.speedApple.y * GRID_SIZE + GRID_SIZE);
-        ctx.lineTo(state.speedApple.x * GRID_SIZE, state.speedApple.y * GRID_SIZE + GRID_SIZE);
-        ctx.closePath();
-        ctx.fill();
-        ctx.shadowBlur = 0;
+        drawItemBase(state.speedApple.x, state.speedApple.y, '#00ff88', '⚡', 'SPD', 'diamond');
     }
 
     // 畫毒蘋果 (紫色)
     if(state.poisonApple) {
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = '#800080';
-        ctx.fillStyle = '#800080';
-        ctx.fillRect(state.poisonApple.x * GRID_SIZE + 2, state.poisonApple.y * GRID_SIZE + 2, GRID_SIZE - 4, GRID_SIZE - 4);
-        ctx.shadowBlur = 0;
+        drawItemBase(state.poisonApple.x, state.poisonApple.y, '#cc44cc', '☠', 'REV', 'square');
     }
 
     // 畫磁鐵蘋果 (藍色)
     if(state.magnetApple) {
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = '#0088ff';
-        ctx.fillStyle = '#0088ff';
-        ctx.beginPath();
-        ctx.arc(state.magnetApple.x * GRID_SIZE + GRID_SIZE/2, state.magnetApple.y * GRID_SIZE + GRID_SIZE/2, GRID_SIZE/2 - 2, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.shadowBlur = 0;
+        drawItemBase(state.magnetApple.x, state.magnetApple.y, '#0088ff', 'U', 'MAG', 'circle');
     }
 
     // 畫炸彈蘋果 (黑色)
     if(state.bombApple) {
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = '#555555';
-        ctx.fillStyle = '#333333';
-        ctx.beginPath();
-        ctx.arc(state.bombApple.x * GRID_SIZE + GRID_SIZE/2, state.bombApple.y * GRID_SIZE + GRID_SIZE/2, GRID_SIZE/2 - 2, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#ff0000'; // 引信
-        ctx.fillRect(state.bombApple.x * GRID_SIZE + GRID_SIZE/2 - 2, state.bombApple.y * GRID_SIZE, 4, 4);
-        ctx.shadowBlur = 0;
+        drawItemBase(state.bombApple.x, state.bombApple.y, '#ff4a4a', '●', 'BOM', 'circle');
     }
 
     // 畫地雷
     if (state.mines) {
         let now = Date.now();
         state.mines.forEach(mine => {
-            ctx.shadowBlur = 10;
+            const cx = mine.x * GRID_SIZE + GRID_SIZE / 2;
+            const cy = mine.y * GRID_SIZE + GRID_SIZE / 2;
+            const liveColor = (Math.floor(now / 200) % 2 === 0) ? '#ff0000' : '#550000';
+            ctx.save();
+            ctx.shadowBlur = 12;
             ctx.shadowColor = '#ff0000';
-            ctx.fillStyle = (Math.floor(now / 200) % 2 === 0) ? '#ff0000' : '#550000'; // 閃爍紅光
+            ctx.fillStyle = '#111111';
             ctx.beginPath();
-            ctx.arc(mine.x * GRID_SIZE + GRID_SIZE/2, mine.y * GRID_SIZE + GRID_SIZE/2, GRID_SIZE/2 - 2, 0, Math.PI * 2);
+            ctx.arc(cx, cy, GRID_SIZE/2 - 3, 0, Math.PI * 2);
             ctx.fill();
+            ctx.strokeStyle = liveColor;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.fillStyle = liveColor;
+            ctx.fillRect(cx - 2, cy - 2, 4, 4);
             ctx.shadowBlur = 0;
+            ctx.restore();
         });
     }
 

@@ -129,7 +129,95 @@ h1 {
 .score-board span {
     color: var(--text-color);
     text-shadow: 0 0 5px var(--text-color);
-    margin-left: 5px;
+}
+
+.arena-scoreboard {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+}
+
+.score-row {
+    --player-color: var(--primary-color);
+    display: grid;
+    grid-template-columns: 30px minmax(0, 1fr);
+    gap: 0.55rem;
+    align-items: center;
+    padding: 0.55rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: linear-gradient(90deg, rgba(255,255,255,0.05), rgba(255,255,255,0.015));
+    box-shadow: inset 3px 0 0 var(--player-color);
+}
+
+.score-row-self {
+    border-color: var(--player-color);
+    box-shadow: inset 3px 0 0 var(--player-color), 0 0 12px rgba(0, 229, 255, 0.18);
+}
+
+.score-rank {
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--player-color);
+    color: var(--player-color);
+    font-family: var(--font-main);
+    font-size: 0.58rem;
+    text-shadow: 0 0 8px var(--player-color);
+}
+
+.score-body {
+    min-width: 0;
+}
+
+.score-topline {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.55rem;
+    align-items: baseline;
+}
+
+.score-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #fff !important;
+    font-weight: 700;
+    text-shadow: none !important;
+}
+
+.score-points {
+    flex: 0 0 auto;
+    color: var(--player-color) !important;
+    font-weight: 700;
+    text-shadow: 0 0 6px var(--player-color) !important;
+}
+
+.score-meta {
+    margin-top: 0.18rem;
+    color: #8fb7c1;
+    font-size: 0.72rem;
+}
+
+.score-status {
+    color: var(--gold-apple) !important;
+    text-shadow: 0 0 5px var(--gold-apple) !important;
+}
+
+.score-meter {
+    margin-top: 0.35rem;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.08);
+    overflow: hidden;
+}
+
+.score-meter span {
+    display: block;
+    height: 100%;
+    background: var(--player-color);
+    box-shadow: 0 0 8px var(--player-color);
 }
 
 .panel-title-row {
