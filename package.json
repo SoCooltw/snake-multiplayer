@@ -23,7 +23,10 @@
       "package.json"
     ],
     "win": {
-      "target": "nsis",
+      "target": [
+        "nsis",
+        "portable"
+      ],
       "icon": "icons/icon.ico",
       "signAndEditExecutable": false,
       "forceCodeSigning": false
