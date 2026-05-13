@@ -102,7 +102,7 @@ if (btnLockLandscape) {
     btnLockLandscape.addEventListener('click', requestLandscapeLock);
 }
 
-['btn-resume-save','btn-show-cheat','cheat-text','btn-leaderboard'].forEach(id => {
+['btn-resume-save','btn-show-cheat','cheat-text'].forEach(id => {
     let el = document.getElementById(id);
     if(el) el.classList.add('hidden');
 });
@@ -116,6 +116,47 @@ document.getElementById('btn-settings').addEventListener('click', () => {
 });
 document.getElementById('btn-close-settings').addEventListener('click', () => {
     screens.settings.classList.add('hidden');
+    if (settingsOrigin) settingsOrigin.classList.remove('hidden');
+    settingsOrigin = null;
+});
+
+async function loadLeaderboard() {
+    const list = document.getElementById('leaderboard-list');
+    if (!list) return;
+    list.innerHTML = '<li>Loading...</li>';
+
+    try {
+        const res = await fetch('/api/leaderboard');
+        const rows = await res.json();
+        list.innerHTML = '';
+
+        if (!Array.isArray(rows) || rows.length === 0) {
+            const empty = document.createElement('li');
+            empty.textContent = 'No saved scores yet';
+            list.appendChild(empty);
+            return;
+        }
+
+        rows.forEach((row) => {
+            const item = document.createElement('li');
+            const name = document.createElement('span');
+            name.textContent = row.player_name;
+            item.append(name, ` ${row.best_score} pts / len ${row.best_length} / ${row.games_played} games`);
+            list.appendChild(item);
+        });
+    } catch (err) {
+        list.innerHTML = '<li>Failed to load leaderboard</li>';
+    }
+}
+
+document.getElementById('btn-leaderboard').addEventListener('click', async () => {
+    settingsOrigin = Object.values(screens).find(el => !el.classList.contains('hidden')) || null;
+    hideAllScreens();
+    screens.leaderboard.classList.remove('hidden');
+    await loadLeaderboard();
+});
+document.getElementById('btn-close-leaderboard').addEventListener('click', () => {
+    screens.leaderboard.classList.add('hidden');
     if (settingsOrigin) settingsOrigin.classList.remove('hidden');
     settingsOrigin = null;
 });

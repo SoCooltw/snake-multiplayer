@@ -3,6 +3,7 @@ const express = require('express');
 const app = express();
 const http = require('http').createServer(app);
 const io = require('socket.io')(http);
+const { Pool } = require('pg');
 const {
     GRID_SIZE,
     NUM_APPLES,
@@ -17,6 +18,103 @@ const {
     MAX_PLAYER_NAME_LENGTH
 } = require('./gameConfig');
 const { ITEM_TYPES } = require('./itemTypes');
+
+const db = process.env.DATABASE_URL
+    ? new Pool({
+        connectionString: process.env.DATABASE_URL,
+        ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+    })
+    : null;
+
+async function initDatabase() {
+    if (!db) {
+        console.log('DATABASE_URL not set; persistent leaderboard disabled.');
+        return;
+    }
+
+    await db.query(`
+        CREATE TABLE IF NOT EXISTS players (
+            id SERIAL PRIMARY KEY,
+            name VARCHAR(40) UNIQUE NOT NULL,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+
+        CREATE TABLE IF NOT EXISTS game_results (
+            id SERIAL PRIMARY KEY,
+            player_id INTEGER REFERENCES players(id),
+            player_name VARCHAR(40) NOT NULL,
+            score INTEGER NOT NULL DEFAULT 0,
+            length INTEGER NOT NULL DEFAULT 0,
+            killed_by VARCHAR(40),
+            played_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+
+        CREATE TABLE IF NOT EXISTS leaderboard (
+            id SERIAL PRIMARY KEY,
+            player_id INTEGER REFERENCES players(id),
+            player_name VARCHAR(40) UNIQUE NOT NULL,
+            best_score INTEGER NOT NULL DEFAULT 0,
+            best_length INTEGER NOT NULL DEFAULT 0,
+            games_played INTEGER NOT NULL DEFAULT 0,
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+    `);
+    console.log('PostgreSQL database ready.');
+}
+
+async function getOrCreatePlayerId(name) {
+    const result = await db.query(`
+        INSERT INTO players (name)
+        VALUES ($1)
+        ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
+        RETURNING id;
+    `, [name]);
+    return result.rows[0].id;
+}
+
+async function recordGameResult(player, killedBy = null) {
+    if (!db || !player) return;
+
+    try {
+        const playerId = await getOrCreatePlayerId(player.name);
+        const length = Array.isArray(player.snake) ? player.snake.length : 0;
+        const score = player.score || 0;
+
+        await db.query(`
+            INSERT INTO game_results (player_id, player_name, score, length, killed_by)
+            VALUES ($1, $2, $3, $4, $5);
+        `, [playerId, player.name, score, length, killedBy]);
+
+        await db.query(`
+            INSERT INTO leaderboard (player_id, player_name, best_score, best_length, games_played, updated_at)
+            VALUES ($1, $2, $3, $4, 1, NOW())
+            ON CONFLICT (player_name) DO UPDATE SET
+                best_score = GREATEST(leaderboard.best_score, EXCLUDED.best_score),
+                best_length = GREATEST(leaderboard.best_length, EXCLUDED.best_length),
+                games_played = leaderboard.games_played + 1,
+                updated_at = NOW();
+        `, [playerId, player.name, score, length]);
+    } catch (err) {
+        console.error('Failed to record game result:', err.message);
+    }
+}
+
+app.get('/api/leaderboard', async (req, res) => {
+    if (!db) return res.json([]);
+
+    try {
+        const result = await db.query(`
+            SELECT player_name, best_score, best_length, games_played, updated_at
+            FROM leaderboard
+            ORDER BY best_score DESC, best_length DESC, updated_at ASC
+            LIMIT 20;
+        `);
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Failed to load leaderboard:', err.message);
+        res.status(500).json({ error: 'Failed to load leaderboard' });
+    }
+});
 
 // 讓 Express 讀取靜態檔案 (禁止快取，確保玩家拿到最新版)
 app.use(express.static(__dirname, {
@@ -435,6 +533,7 @@ setInterval(() => {
             if (killerName) {
                 io.emit('killFeed', { msg: `🐍 ${killerName} 吞噬了 ${players[id].name}！`, color: '#ff4444' });
             }
+            recordGameResult(players[id], killerName);
             players[id].state = 'DEAD';
             io.to(id).emit('gameOver', players[id].score);
         }
@@ -472,6 +571,12 @@ setInterval(() => {
 }, 60);
 
 const PORT = process.env.PORT || 3000;
-http.listen(PORT, () => {
-    console.log(`伺服器已啟動於 http://localhost:${PORT}`);
-});
+initDatabase()
+    .catch((err) => {
+        console.error('Database initialization failed:', err.message);
+    })
+    .finally(() => {
+        http.listen(PORT, () => {
+            console.log(`Server running at http://localhost:${PORT}`);
+        });
+    });
