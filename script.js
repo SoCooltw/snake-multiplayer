@@ -794,7 +794,52 @@ function updateSpectatorTargets(players) {
 }
 
 // 繪製遊戲畫面
+const INTERPOLATION_MS = 100;
+let previousGameState = null;
+let latestGameState = null;
+let previousGameStateAt = 0;
+let latestGameStateAt = 0;
+let renderLoopStarted = false;
+
+function getRenderAlpha() {
+    if (!previousGameState) return 1;
+    return Math.min(1, Math.max(0, (performance.now() - latestGameStateAt) / INTERPOLATION_MS));
+}
+
+function getRenderSegment(playerId, index, segment, alpha) {
+    const previous = previousGameState && previousGameState.players && previousGameState.players[playerId];
+    const prevSegment = previous && previous.snake && previous.snake[index];
+    if (!prevSegment) return segment;
+
+    const dx = segment.x - prevSegment.x;
+    const dy = segment.y - prevSegment.y;
+    if (Math.abs(dx) > 2 || Math.abs(dy) > 2) return segment;
+
+    return {
+        x: prevSegment.x + dx * alpha,
+        y: prevSegment.y + dy * alpha
+    };
+}
+
 socket.on('gameState', (state) => {
+    previousGameState = latestGameState;
+    previousGameStateAt = latestGameStateAt;
+    latestGameState = state;
+    latestGameStateAt = performance.now();
+    const renderAlpha = getRenderAlpha();
+
+    if (!renderLoopStarted) {
+        renderLoopStarted = true;
+        requestAnimationFrame(renderLatestGameState);
+    }
+});
+
+function renderLatestGameState() {
+    if (latestGameState) renderGameState(latestGameState);
+    requestAnimationFrame(renderLatestGameState);
+}
+
+function renderGameState(state) {
     resizeCanvasToBoard();
     const SERVER_GRID_SIZE = 100; // 對應後端的新尺寸
     updateSpectatorTargets(state.players);
@@ -812,7 +857,7 @@ socket.on('gameState', (state) => {
         camX = spectatorCamX;
         camY = spectatorCamY;
     } else if (followedId && state.players[followedId] && state.players[followedId].state === 'PLAYING') {
-        mySnake = state.players[followedId].snake[0];
+        mySnake = getRenderSegment(followedId, 0, state.players[followedId].snake[0], renderAlpha);
         let targetX = mySnake.x * GRID_SIZE + GRID_SIZE / 2;
         let targetY = mySnake.y * GRID_SIZE + GRID_SIZE / 2;
         camX = canvas.width / 2 - targetX;
@@ -832,8 +877,7 @@ socket.on('gameState', (state) => {
     }
 
     // 清空並畫上宇宙背景 (深藍紫色底)
-    ctx.fillStyle = '#0b0c10'; 
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    drawWorldBackground(camX, camY, SERVER_GRID_SIZE);
 
     ctx.save();
     ctx.translate(camX, camY);
@@ -964,6 +1008,7 @@ socket.on('gameState', (state) => {
         let p = state.players[id];
         
         p.snake.forEach((segment, index) => {
+            const renderSegment = getRenderSegment(id, index, segment, renderAlpha);
             let color = p.color;
             if (p.isSuper) {
                 // 超級狀態：閃爍七彩顏色
@@ -973,13 +1018,13 @@ socket.on('gameState', (state) => {
             ctx.fillStyle = index === 0 ? '#FFFFFF' : color;
             ctx.shadowBlur = index === 0 || p.isSuper ? 15 : 5;
             ctx.shadowColor = color;
-            ctx.fillRect(segment.x * GRID_SIZE + 1, segment.y * GRID_SIZE + 1, GRID_SIZE - 2, GRID_SIZE - 2);
+            ctx.fillRect(renderSegment.x * GRID_SIZE + 1, renderSegment.y * GRID_SIZE + 1, GRID_SIZE - 2, GRID_SIZE - 2);
             
             // 標記自己的蛇眼
             if (index === 0 && id === myId) {
                 ctx.fillStyle = '#ff0000';
                 ctx.shadowBlur = 0;
-                ctx.fillRect(segment.x * GRID_SIZE + 8, segment.y * GRID_SIZE + 8, 4, 4);
+                ctx.fillRect(renderSegment.x * GRID_SIZE + 8, renderSegment.y * GRID_SIZE + 8, 4, 4);
             }
 
             // 畫皇冠和名字
@@ -991,7 +1036,7 @@ socket.on('gameState', (state) => {
                     ctx.font = "bold 16px sans-serif";
                 }
                 ctx.fillStyle = p.isSuper ? '#ffd700' : p.color;
-                ctx.fillText(p.name, segment.x * GRID_SIZE + GRID_SIZE / 2, segment.y * GRID_SIZE - (p.isKing ? 25 : 10));
+                ctx.fillText(p.name, renderSegment.x * GRID_SIZE + GRID_SIZE / 2, renderSegment.y * GRID_SIZE - (p.isKing ? 25 : 10));
             }
         });
         ctx.shadowBlur = 0;
@@ -1043,7 +1088,7 @@ socket.on('gameState', (state) => {
 
     // 畫出其他玩家的方向提示
     if(followedId && state.players[followedId] && state.players[followedId].state === 'PLAYING') {
-        let followedSnake = state.players[followedId].snake[0];
+        let followedSnake = getRenderSegment(followedId, 0, state.players[followedId].snake[0], renderAlpha);
         let myScreenX = followedSnake.x * GRID_SIZE + GRID_SIZE / 2 + camX;
         let myScreenY = followedSnake.y * GRID_SIZE + GRID_SIZE / 2 + camY;
 
@@ -1052,7 +1097,7 @@ socket.on('gameState', (state) => {
             let other = state.players[id];
             if (other.state !== 'PLAYING') continue;
 
-            let otherHead = other.snake[0];
+            let otherHead = getRenderSegment(id, 0, other.snake[0], renderAlpha);
             let targetX = otherHead.x * GRID_SIZE + GRID_SIZE / 2 + camX;
             let targetY = otherHead.y * GRID_SIZE + GRID_SIZE / 2 + camY;
 
@@ -1114,4 +1159,4 @@ socket.on('gameState', (state) => {
         });
         ctx.shadowBlur = 0;
     }
-});
+}
