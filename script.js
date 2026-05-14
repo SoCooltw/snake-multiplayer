@@ -690,7 +690,8 @@ function drawWorldBackground(camX, camY, serverGridSize) {
     const sw = Math.min(canvas.width, worldSize - sx);
     const sh = Math.min(canvas.height, worldSize - sy);
 
-    drawWorldBackground(camX, camY, SERVER_GRID_SIZE);
+    ctx.fillStyle = '#0b0c10';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(worldBackgroundCanvas, sx, sy, sw, sh, sx + camX, sy + camY, sw, sh);
 }
 
@@ -826,7 +827,7 @@ socket.on('gameState', (state) => {
     previousGameStateAt = latestGameStateAt;
     latestGameState = state;
     latestGameStateAt = performance.now();
-    const renderAlpha = getRenderAlpha();
+    updateSpectatorTargets(state.players);
 
     if (!renderLoopStarted) {
         renderLoopStarted = true;
@@ -843,6 +844,7 @@ function renderGameState(state) {
     resizeCanvasToBoard();
     const SERVER_GRID_SIZE = 100; // 對應後端的新尺寸
     updateSpectatorTargets(state.players);
+    const renderAlpha = getRenderAlpha();
     
     // 計算相機位置 (活著跟隨自己；觀戰可跟隨指定玩家；否則置中)
     let camX = 0;
