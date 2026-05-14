@@ -72,9 +72,73 @@ const onlineCountEl = document.getElementById('online-count');
 const hudOnlineCountEl = document.getElementById('hud-online-count');
 const hudModeEl = document.getElementById('hud-mode');
 const hudPlayerCountEl = document.getElementById('hud-player-count');
+const hudScoreEl = document.getElementById('hud-score');
+const hudLengthEl = document.getElementById('hud-length');
+const hudDashEl = document.getElementById('hud-dash');
+const hudDashStateEl = document.getElementById('hud-dash-state');
+const hudEffectsEl = document.getElementById('hud-effects');
 const spectateTargetEl = document.getElementById('spectate-target');
 const btnLockLandscape = document.getElementById('btn-lock-landscape');
 const orientationLockStatusEl = document.getElementById('orientation-lock-status');
+
+const EFFECT_DEFINITIONS = [
+    { key: 'superUntil', label: 'Invincible', short: 'INV', color: '#ffd700' },
+    { key: 'speedUntil', label: 'Speed Boost', short: 'SPD', color: '#00ff88' },
+    { key: 'magnetUntil', label: 'Magnet Pull', short: 'MAG', color: '#49a7ff' },
+    { key: 'reversedUntil', label: 'Reverse', short: 'REV', color: '#cc66ff' }
+];
+
+function activeEffectsForPlayer(player, now) {
+    if (!player) return [];
+    return EFFECT_DEFINITIONS
+        .filter(effect => player[effect.key] && player[effect.key] > now)
+        .map(effect => ({
+            ...effect,
+            secs: Math.max(1, Math.ceil((player[effect.key] - now) / 1000))
+        }));
+}
+
+function updateMatchHud(state, now) {
+    const player = myId && state.players ? state.players[myId] : null;
+    const isPlaying = player && player.state === 'PLAYING';
+
+    if (hudScoreEl) hudScoreEl.textContent = isPlaying ? String(player.score || 0) : '0';
+    if (hudLengthEl) hudLengthEl.textContent = isPlaying ? String(player.len || (player.snake ? player.snake.length : 0)) : '0';
+
+    if (hudDashEl && hudDashStateEl) {
+        hudDashEl.classList.toggle('is-spending', Boolean(isPlaying && player.isDashing));
+        hudDashEl.classList.toggle('is-low', Boolean(isPlaying && (player.len || 0) <= 3));
+        if (!isPlaying) {
+            hudDashStateEl.textContent = 'Join';
+        } else if ((player.len || 0) <= 3) {
+            hudDashStateEl.textContent = 'Low';
+        } else if (player.isDashing) {
+            hudDashStateEl.textContent = 'Using';
+        } else {
+            hudDashStateEl.textContent = 'Ready';
+        }
+    }
+
+    if (!hudEffectsEl) return;
+    hudEffectsEl.innerHTML = '';
+    const activeEffects = activeEffectsForPlayer(player, now);
+    if (!activeEffects.length) {
+        const empty = document.createElement('span');
+        empty.className = 'effect-chip effect-muted';
+        empty.textContent = isPlaying ? 'No active effect' : 'Enter arena to track effects';
+        hudEffectsEl.appendChild(empty);
+        return;
+    }
+
+    activeEffects.forEach(effect => {
+        const chip = document.createElement('span');
+        chip.className = 'effect-chip';
+        chip.style.setProperty('--effect-color', effect.color);
+        chip.textContent = `${effect.short} ${effect.secs}s`;
+        chip.title = effect.label;
+        hudEffectsEl.appendChild(chip);
+    });
+}
 
 // 隱藏目前多人連線用不到的功能
 async function requestLandscapeLock() {
@@ -293,17 +357,23 @@ socket.on('updateScoreboard', (scores) => {
             points.className = 'score-points';
             points.textContent = `${s.score} 分`;
 
+            points.textContent = `${s.score} pts`;
             top.append(name, points);
 
             const meta = document.createElement('div');
             meta.className = 'score-meta';
             meta.textContent = `長度 ${s.len}`;
+            meta.textContent = `Length ${s.len}`;
             if (s.isSuper) {
                 const status = document.createElement('span');
                 status.className = 'score-status';
+                status.textContent = 'INV';
                 status.textContent = '無敵';
                 meta.append(' · ', status);
             }
+
+            const superStatus = meta.querySelector('.score-status');
+            if (superStatus) superStatus.textContent = 'INV';
 
             const meter = document.createElement('div');
             meter.className = 'score-meter';
@@ -351,6 +421,16 @@ function updateEffectToasts(player, now) {
 }
 
 // UI 顯示切換
+updateEffectToasts = function(player, now) {
+    EFFECT_DEFINITIONS.forEach(effect => {
+        const isActive = player[effect.key] && player[effect.key] > now;
+        if (isActive && !previousEffectState[effect.key]) {
+            pushEffectToast(effect.short, effect.label, effect.color);
+        }
+        previousEffectState[effect.key] = isActive;
+    });
+};
+
 const btnToggleUi = document.getElementById('btn-toggle-ui');
 const controlsHint = document.getElementById('controls-hint');
 if (btnToggleUi && controlsHint) {
@@ -868,6 +948,7 @@ socket.on('gameState', (state) => {
 
     // 畫擊殺通知 (Kill Feed)
     let now = Date.now();
+    updateMatchHud(state, now);
     if (myId && state.players[myId] && state.players[myId].state === 'PLAYING') {
         updateEffectToasts(state.players[myId], now);
     } else {
@@ -961,6 +1042,10 @@ socket.on('gameState', (state) => {
         if (p.speedUntil    && p.speedUntil    > now) effects.push({ icon: '💨', label: '加速', secs: Math.ceil((p.speedUntil    - now) / 1000), color: '#00ff88' });
         if (p.magnetUntil   && p.magnetUntil   > now) effects.push({ icon: '🧲', label: '磁鐵', secs: Math.ceil((p.magnetUntil   - now) / 1000), color: '#0088ff' });
         if (p.reversedUntil && p.reversedUntil > now) effects.push({ icon: '☠️', label: '中毒', secs: Math.ceil((p.reversedUntil - now) / 1000), color: '#cc44cc' });
+        effects.length = 0;
+        activeEffectsForPlayer(p, now).forEach(effect => {
+            effects.push({ icon: effect.short, label: effect.label, secs: effect.secs, color: effect.color });
+        });
         effects.forEach((ef, i) => {
             ctx.font = 'bold 13px sans-serif';
             ctx.textAlign = 'left';

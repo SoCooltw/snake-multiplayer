@@ -9,7 +9,7 @@
     <meta http-equiv="Expires" content="0">
     <meta name="theme-color" content="#00e5ff">
     <link rel="manifest" href="/manifest.webmanifest">
-    <link rel="stylesheet" href="style.css?v=8">
+    <link rel="stylesheet" href="style.css?v=9">
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -56,19 +56,40 @@
                 </div>
             </section>
             <section class="side-panel controls-hint" id="controls-hint">
-                <p>Item Guide<br>
-                Space: dash by spending length<br>
-                Head clash: bigger snake wins<br>
-                Gold apple: 10s invincible<br>
-                Blue apple: magnet fruit pull<br>
-                Purple apple: reverse controls<br>
-                Black apple: drops mines after eating<br>
-                Black hole: avoid the pull<br>
-                Crown: defeat leader for bonus score</p>
+                <div class="panel-title-row">
+                    <p class="panel-title">Item Guide</p>
+                    <span class="panel-badge">Live tips</span>
+                </div>
+                <div class="item-guide-list">
+                    <div class="guide-item guide-red"><span>Space</span><strong>Dash by spending length</strong></div>
+                    <div class="guide-item guide-gold"><span>INV</span><strong>10s invincible</strong></div>
+                    <div class="guide-item guide-blue"><span>MAG</span><strong>Pull fruit toward you</strong></div>
+                    <div class="guide-item guide-purple"><span>REV</span><strong>Reverse controls</strong></div>
+                    <div class="guide-item guide-danger"><span>BOM</span><strong>Drops mines after eating</strong></div>
+                    <div class="guide-item guide-dark"><span>Hole</span><strong>Avoid the pull</strong></div>
+                    <div class="guide-item guide-gold"><span>Crown</span><strong>Defeat leader for bonus</strong></div>
+                </div>
             </section>
         </div>
 
         <div class="game-board-container" id="board-container">
+            <div class="match-hud" id="match-hud">
+                <div class="hud-stat">
+                    <span>Score</span>
+                    <strong id="hud-score">0</strong>
+                </div>
+                <div class="hud-stat">
+                    <span>Length</span>
+                    <strong id="hud-length">0</strong>
+                </div>
+                <div class="hud-stat hud-dash" id="hud-dash">
+                    <span>Dash</span>
+                    <strong id="hud-dash-state">Ready</strong>
+                </div>
+                <div class="hud-effects" id="hud-effects">
+                    <span class="effect-chip effect-muted">No active effect</span>
+                </div>
+            </div>
             <canvas id="game-canvas" width="600" height="600"></canvas>
             
             <!-- Screens -->
@@ -151,7 +172,7 @@
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
-    <script src="script.js?v=8"></script>
+    <script src="script.js?v=9"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
