@@ -2,6 +2,7 @@ const canvas = document.getElementById('game-canvas');
 const ctx = canvas.getContext('2d');
 const GRID_SIZE = 20;
 const WORLD_GRID_SIZE = 100;
+const HUD_UPDATE_INTERVAL_MS = 150;
 const boardContainer = document.getElementById('board-container');
 
 let spectatorCamX = 0;
@@ -397,6 +398,7 @@ socket.on('killFeed', (data) => {
 
 let effectToasts = [];
 let previousEffectState = {};
+let lastHudUpdateAt = 0;
 
 function pushEffectToast(icon, label, color) {
     effectToasts.push({ icon, label, color, time: Date.now() });
@@ -633,13 +635,63 @@ socket.on('chatMessage', (data) => {
 
 // 初始化星星背景
 let stars = [];
-for (let i = 0; i < 300; i++) {
+for (let i = 0; i < 160; i++) {
     stars.push({
         x: Math.random() * 2000,
         y: Math.random() * 2000,
         r: Math.random() * 1.5,
         alpha: Math.random()
     });
+}
+
+let worldBackgroundCanvas = null;
+let worldBackgroundCtx = null;
+
+function buildWorldBackground(serverGridSize) {
+    const worldSize = serverGridSize * GRID_SIZE;
+    worldBackgroundCanvas = document.createElement('canvas');
+    worldBackgroundCanvas.width = worldSize;
+    worldBackgroundCanvas.height = worldSize;
+    worldBackgroundCtx = worldBackgroundCanvas.getContext('2d');
+
+    worldBackgroundCtx.fillStyle = '#0b0c10';
+    worldBackgroundCtx.fillRect(0, 0, worldSize, worldSize);
+
+    stars.forEach(star => {
+        worldBackgroundCtx.fillStyle = `rgba(255, 255, 255, ${star.alpha})`;
+        worldBackgroundCtx.beginPath();
+        worldBackgroundCtx.arc(star.x, star.y, star.r, 0, Math.PI * 2);
+        worldBackgroundCtx.fill();
+    });
+
+    worldBackgroundCtx.strokeStyle = '#00e5ff';
+    worldBackgroundCtx.lineWidth = 4;
+    worldBackgroundCtx.strokeRect(0, 0, worldSize, worldSize);
+
+    worldBackgroundCtx.strokeStyle = 'rgba(255, 255, 255, 0.045)';
+    worldBackgroundCtx.lineWidth = 1;
+    for (let i = 0; i <= serverGridSize; i++) {
+        worldBackgroundCtx.beginPath();
+        worldBackgroundCtx.moveTo(i * GRID_SIZE, 0);
+        worldBackgroundCtx.lineTo(i * GRID_SIZE, worldSize);
+        worldBackgroundCtx.stroke();
+        worldBackgroundCtx.beginPath();
+        worldBackgroundCtx.moveTo(0, i * GRID_SIZE);
+        worldBackgroundCtx.lineTo(worldSize, i * GRID_SIZE);
+        worldBackgroundCtx.stroke();
+    }
+}
+
+function drawWorldBackground(camX, camY, serverGridSize) {
+    if (!worldBackgroundCanvas) buildWorldBackground(serverGridSize);
+    const worldSize = serverGridSize * GRID_SIZE;
+    const sx = Math.max(0, Math.min(worldSize - canvas.width, -camX));
+    const sy = Math.max(0, Math.min(worldSize - canvas.height, -camY));
+    const sw = Math.min(canvas.width, worldSize - sx);
+    const sh = Math.min(canvas.height, worldSize - sy);
+
+    drawWorldBackground(camX, camY, SERVER_GRID_SIZE);
+    ctx.drawImage(worldBackgroundCanvas, sx, sy, sw, sh, sx + camX, sy + camY, sw, sh);
 }
 
 function drawItemBase(x, y, color, glyph, label, shape = 'circle') {
@@ -785,6 +837,7 @@ socket.on('gameState', (state) => {
 
     ctx.save();
     ctx.translate(camX, camY);
+    if (false) {
 
     // 畫宇宙星星
     stars.forEach(star => {
@@ -812,6 +865,8 @@ socket.on('gameState', (state) => {
     }
 
     // 畫蘋果 (快過期的會閃爍)
+    }
+
     if(state.apples) {
         let now = Date.now();
         state.apples.forEach(apple => {
@@ -948,7 +1003,10 @@ socket.on('gameState', (state) => {
 
     // 畫擊殺通知 (Kill Feed)
     let now = Date.now();
-    updateMatchHud(state, now);
+    if (now - lastHudUpdateAt > HUD_UPDATE_INTERVAL_MS) {
+        updateMatchHud(state, now);
+        lastHudUpdateAt = now;
+    }
     if (myId && state.players[myId] && state.players[myId].state === 'PLAYING') {
         updateEffectToasts(state.players[myId], now);
     } else {

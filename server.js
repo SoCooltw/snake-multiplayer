@@ -317,6 +317,8 @@ function getRandomColor() {
     return `hsl(${Math.floor(Math.random() * 360)}, 100%, 60%)`;
 }
 
+const GAME_TICK_MS = 50;
+
 let tickCount = 0;
 setInterval(() => {
     tickCount++;
@@ -568,7 +570,7 @@ setInterval(() => {
 
     io.emit('gameState', getGameStatePayload());
 
-}, 60);
+}, GAME_TICK_MS);
 
 const PORT = process.env.PORT || 3000;
 initDatabase()
